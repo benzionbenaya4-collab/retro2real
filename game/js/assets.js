@@ -20,13 +20,14 @@ export async function loadTiles(file) {
 }
 
 /** ציור פריים של ספרייט. (x,y) = רגליים. */
-export function drawSpr(ctx, S, anim, t, x, y, alpha = 1) {
+export function drawSpr(ctx, S, anim, t, x, y, alpha = 1, scale = 1) {
   if (!S || !S.im.width) return;
   const a = S.j.anims[anim] || S.j.anims.idle, n = a.frames.length;
   let i = Math.floor(t * a.fps); i = a.loop === false ? Math.min(i, n - 1) : i % n;
   const f = a.frames[i], fw = S.j.frameW, fh = S.j.frameH, c = S.j.columns;
   if (alpha < 1) { ctx.save(); ctx.globalAlpha = alpha; }
-  ctx.drawImage(S.im, (f % c) * fw, Math.floor(f / c) * fh, fw, fh, Math.round(x - fw / 2), Math.round(y - fh), fw, fh);
+  const dw = Math.round(fw * scale), dh = Math.round(fh * scale);
+  ctx.drawImage(S.im, (f % c) * fw, Math.floor(f / c) * fh, fw, fh, Math.round(x - dw / 2), Math.round(y - dh), dw, dh);
   if (alpha < 1) ctx.restore();
 }
 

@@ -66,7 +66,7 @@ function onResult(r) {
   if (r === 'dead') return card('GAME OVER', 'דן נפל…', 'פיקסי שמר נקודת ביקורת בתחילת העולם. ננסה שוב?', 'נסה שוב', () => enterWorld(worldId, false));
   const next = WORLDS[worldId].next;
   if (!next && WORLDS[worldId].final) return finale();
-  if (!next) return card('TO BE CONTINUED', 'המשך יבוא…', 'העמק ניצל! השער מוביל לממלכת 16 ביט, והיא עדיין בבנייה. פיקסי כבר מחמם את השרתים.', 'למסך הפתיחה', showTitle);
+  if (!next) return card('TO BE CONTINUED', 'המשך יבוא…', 'השער פתוח, אבל העולם הבא עדיין בבנייה. פיקסי כבר מחמם את השרתים.', 'למסך הפתיחה', showTitle);
   save = store.save({ world: Math.max(save.world, next) });
   const W = WORLDS[next];
   card(W.era, W.name, W.intro, 'יאללה', () => enterWorld(next, false));

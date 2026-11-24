@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>מרטרו לרגיל</title>
 <meta name="description" content="מרטרו לרגיל – אבא נשאב לתוך משחק רטרו ועובר מ-8 ביט עד היום. בקרוב.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0c0a12">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@400;800;900&display=swap" rel="stylesheet">
 <style>
@@ -21,6 +25,9 @@
   .play { display:inline-flex; gap:10px; align-items:center; padding:14px 26px; border:2px solid var(--phos); border-radius:14px; color:var(--fg); text-decoration:none; font:800 20px Rubik, sans-serif; background:#16131f; }
   .play b { font-family:"Press Start 2P", monospace; font-size:11px; color:var(--phos); }
   .play:hover, .play:focus-visible { background:#1f1a2c; outline:3px solid var(--gold); outline-offset:2px; }
+  button.play { cursor:pointer; }
+  .how { background:#16131f; border:1px solid #2b2538; border-radius:14px; padding:14px 18px; line-height:1.8; max-width:46ch; text-align:start; }
+  .how b { color:var(--gold); }
   @keyframes blink { 50% { opacity: .25; } }
   @media (prefers-reduced-motion: reduce) { .soon { animation: none; } }
 </style>
@@ -31,8 +38,9 @@
   <div class="eras">8-BIT → 16-BIT → 32-BIT → NOW</div>
   <canvas id="cv" width="256" height="144" aria-label="דן ופיקסי הולכים בעמק"></canvas>
   <p>לילה אחד, דן, צייד ואבא, לחץ על הכפתורים הלא נכונים בקונסולה הישנה של הבן שלו… ונשאב פנימה. עכשיו הוא צריך לעבור דרך כל הדורות של עולם המשחקים, מ־8 ביט ועד היום, ולעצור את ההאקר שמשחית את העולמות.</p>
-  <a class="play" href="game/">▶ שחק עכשיו <b>WORLD 1</b></a>
-  <div class="soon">MORE WORLDS SOON…</div>
+  <button class="play" id="install">📲 התקינו את המשחק עכשיו</button>
+  <div class="how" id="how" hidden></div>
+  <div class="soon">FREE · OFFLINE · WORLD 1 READY</div>
 </main>
 <script>
 (async () => {
@@ -51,6 +59,25 @@
     spr('pixi', 'walk_right', t, x - 24, 104 - Math.abs(Math.sin(t * 6)) * 3); spr('dan', 'walk_right', t, x, 110); spr('worm', 'walk_left', t, 256 - ((t * 18) % 300) + 20, 110);
     requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
+})();
+</script>
+<script>
+(() => {
+  const btn = document.getElementById('install'), how = document.getElementById('how');
+  const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+  if (standalone) { location.replace('game/'); return; }
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  let deferred = null;
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; });
+  addEventListener('appinstalled', () => { btn.textContent = '✅ המשחק הותקן!'; show('פותחים את <b>מרטרו לרגיל</b> מהמסך הראשי של הטלפון ומתחילים לשחק 🎮'); });
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  function show(html) { how.innerHTML = html; how.hidden = false; }
+  btn.onclick = async () => {
+    if (deferred) { deferred.prompt(); const r = await deferred.userChoice.catch(() => null); deferred = null;
+      if (r?.outcome === 'accepted') { btn.textContent = '✅ מתקין…'; show('עוד רגע המשחק יופיע במסך הראשי. פותחים אותו משם 🎮'); } return; }
+    if (ios) show('באייפון: לוחצים על <b>כפתור השיתוף</b> ⬆️ למטה, ואז על <b>"הוספה למסך הבית"</b>. אחר כך פותחים את המשחק מהמסך הראשי.');
+    else show('בכרום: לוחצים על <b>⋮</b> למעלה, ואז על <b>"התקנת אפליקציה"</b> או <b>"הוספה למסך הבית"</b>. אחר כך פותחים את המשחק מהמסך הראשי.<br>אם הכפתור לא מופיע, מרעננים את הדף ומנסים שוב.');
+  };
 })();
 </script>
 </body>

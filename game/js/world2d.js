@@ -358,7 +358,7 @@ export class World2D {
     for (const p of this.parts) { ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
     // פיקסי
     const pa = pixi.out ? (Math.floor(this.t * 3) % 2 ? 0.35 : 0.6) : 1;
-    drawSpr(ctx, this.SPR(c.era, 'pixi'), 'idle', this.t, this.pixi.x, this.pixi.y + Math.sin(this.t * 4) * 2 + 8, pa);
+    drawSpr(ctx, this.SPR(c.era, 'pixi'), 'idle', this.t, this.pixi.x, this.pixi.y + Math.sin(this.t * 4) * 2 + 8, pa, c.pixiScale || 1);
     if (pixi.out) { ctx.fillStyle = col.light; ctx.fillRect(Math.round(this.pixi.x) + 5, Math.round(this.pixi.y) - 12, 2, 2); ctx.fillRect(Math.round(this.pixi.x) + 8, Math.round(this.pixi.y) - 15, 2, 2); ctx.fillRect(Math.round(this.pixi.x) + 11, Math.round(this.pixi.y) - 18, 2, 2); }
     if (pixi.scan > 0) this.drawScanWorld(ctx);
     ctx.restore();
