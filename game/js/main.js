@@ -21,6 +21,7 @@ function fit() {
 }
 addEventListener('resize', fit);
 
+function syncCanvas() { const is3d = !!level?.is3d; glc.hidden = !is3d; view.hidden = is3d; }
 function screen(name) { for (const [k, el] of Object.entries(scr)) el.hidden = k !== name; }
 
 // ---------- מסך פתיחה ----------
@@ -50,16 +51,16 @@ function card(era, title, text, btn, onGo) {
 async function enterWorld(id, withCard) {
   worldId = id; const W = WORLDS[id];
   if (withCard && W.intro) return card(W.era, W.name, W.intro, 'יאללה', () => enterWorld(id, false));
-  if (busy) return; busy = true;
+  if (busy) return; busy = true; state = 'loading';
   screen(null); hud.reset(); hud.show(true); hud.setWorld(W.name);
   level?.dispose?.(); level = makeLevel(id);
   try { await level.load(); } catch (e) { console.error(e); }
   busy = false;
-  level.start(); fit();
-  const is3d = !!level.is3d; glc.hidden = !is3d; view.hidden = is3d;
+  level.onChange = () => { fit(); syncCanvas(); };
+  level.start(); fit(); syncCanvas();
   state = 'play'; showTouch(true); $('#btn-menu').hidden = false;
   audio.play(W.song, W.eraIdx);
-  if (W.hello) setTimeout(() => state === 'play' && hud.say(W.hello, 4), 700);
+  if (W.hello && W.kind !== 'boss') setTimeout(() => state === 'play' && hud.say(W.hello, 4), 700);
 }
 function onResult(r) {
   showTouch(false);
@@ -74,7 +75,7 @@ function onResult(r) {
 function finale() {
   save = store.save({ world: 1, best: Math.max(save.best || 0, 1) });
   audio.play('win', 3);
-  card('THE END · תודה ששיחקת', 'ניצחת את ההאקר!', 'חרב האינסוף החזירה את העולמות למקום. ופיקסי? עדיין יש לו טוקנים. בינתיים. 😅', 'למסך הפתיחה', showTitle);
+  card('THE END · תודה ששיחקת', 'ניצחת את ההאקר!', 'חרב האינסוף החזירה את העולמות למקומם. פיקסי שרף על זה את כל הטוקנים שלו, ואומר שזה היה שווה כל טוקן. 😅', 'למסך הפתיחה', showTitle);
 }
 
 // ---------- השהיה ----------

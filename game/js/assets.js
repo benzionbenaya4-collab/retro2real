@@ -35,7 +35,7 @@ export function drawSpr(ctx, S, anim, t, x, y, alpha = 1, scale = 1) {
 const packed = new Map();
 export function loadPacked(loader, path) {
   if (packed.has(path)) return packed.get(path);
-  const base = url('trailer3_data/');
+  const base = url('models/');
   const p = json(url(path)).then(({ gltf, bin }) => {
     const bs = atob(bin), body = new Uint8Array(bs.length); for (let i = 0; i < bs.length; i++) body[i] = bs.charCodeAt(i);
     gltf.buffers[0].byteLength = body.length;

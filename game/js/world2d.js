@@ -16,7 +16,8 @@ function genMap(cfg) {
   const set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W && y < H) g[y * W + x] = v; };
   const start = { x: 4, y: H - 5 };
   if (cfg.arena) { // חדר קרב: קירות, כמה עמודים
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) set(x, y, 'wall'); else set(x, y, r() < 0.5 ? 'path' : 'grass');
+    const mx = W >> 1, my = H >> 1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const ring = Math.abs(Math.hypot((x - mx) / (W / 2 - 3), (y - my) / (H / 2 - 3)) - 0.8) < 0.12; set(x, y, x < 1 || y < 1 || x >= W - 1 || y >= H - 1 ? 'wall' : Math.abs(x - mx) <= 1 || Math.abs(y - my) <= 1 || ring ? 'path' : 'grass'); }
     for (const [x, y] of [[4, 3], [W - 5, 3], [4, H - 4], [W - 5, H - 4]]) set(x, y, 'tree');
     return { g, start: { x: W >> 1, y: H - 3 }, shardSpots: [], gate: null };
   }
@@ -137,6 +138,7 @@ export class World2D {
   spawnBoss(type, x, y) {
     const B = type === 'trojan' ? this.cfg.miniboss : this.cfg.arena;
     const e = this.spawnEnemy(x, y, type, { hp: B.hp, max: B.hp, speed: B.speed, r: B.r, dmg: B.dmg || 1, boss: true, ai: 0, aiT: 1.5, rise: 0.8 });
+    if (B.outageHalf) e.onHalf = true;
     this.boss = e; return e;
   }
   spawnFromVoid() {
