@@ -18,6 +18,9 @@
   canvas { width: 100%; max-width: 860px; aspect-ratio: 16 / 9; image-rendering: pixelated; border-radius: 16px; border: 6px solid #2b2538; background: #000; }
   p { margin: 0; max-width: 60ch; line-height: 1.8; font-size: 17px; }
   .soon { font-family: "Press Start 2P", monospace; color: var(--gold); font-size: 14px; direction: ltr; animation: blink 1s steps(2) infinite; }
+  .play { display:inline-flex; gap:10px; align-items:center; padding:14px 26px; border:2px solid var(--phos); border-radius:14px; color:var(--fg); text-decoration:none; font:800 20px Rubik, sans-serif; background:#16131f; }
+  .play b { font-family:"Press Start 2P", monospace; font-size:11px; color:var(--phos); }
+  .play:hover, .play:focus-visible { background:#1f1a2c; outline:3px solid var(--gold); outline-offset:2px; }
   @keyframes blink { 50% { opacity: .25; } }
   @media (prefers-reduced-motion: reduce) { .soon { animation: none; } }
 </style>
@@ -28,7 +31,8 @@
   <div class="eras">8-BIT → 16-BIT → 32-BIT → NOW</div>
   <canvas id="cv" width="256" height="144" aria-label="דן ופיקסי הולכים בעמק"></canvas>
   <p>לילה אחד, דן, צייד ואבא, לחץ על הכפתורים הלא נכונים בקונסולה הישנה של הבן שלו… ונשאב פנימה. עכשיו הוא צריך לעבור דרך כל הדורות של עולם המשחקים, מ־8 ביט ועד היום, ולעצור את ההאקר שמשחית את העולמות.</p>
-  <div class="soon">GAME IN PROGRESS…</div>
+  <a class="play" href="game/">▶ שחק עכשיו <b>WORLD 1</b></a>
+  <div class="soon">MORE WORLDS SOON…</div>
 </main>
 <script>
 (async () => {
