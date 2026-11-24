@@ -1,0 +1,41 @@
+{
+ "era": "8bit",
+ "name": "valley",
+ "image": "8bit_valley_tileset.png",
+ "tileW": 16,
+ "tileH": 16,
+ "tiles": {
+  "grass": 0,
+  "path": 1,
+  "tree": 2,
+  "water": 3,
+  "water_2": 4,
+  "wall": 5,
+  "castle": 6,
+  "void": 7,
+  "void_2": 8
+ },
+ "anims": {
+  "water": {
+   "frames": [
+    3,
+    4
+   ],
+   "fps": 2
+  },
+  "void": {
+   "frames": [
+    7,
+    8
+   ],
+   "fps": 6
+  }
+ },
+ "solid": [
+  "tree",
+  "water",
+  "wall",
+  "castle",
+  "void"
+ ]
+}
