@@ -14,15 +14,17 @@ export class BossLevel {
     const P = this.phases[this.i];
     this.cur.start(); this.onChange?.();
     audio.play('boss', P.eraIdx); hud.setWorld(P.name);
-    hud.banner(`${this.i ? 'קפיצת עידן!' : 'ההאקר'}<small>${P.tag}</small>`, 2.2);
-    if (P.say) setTimeout(() => hud.say(P.say, 3.6), this.i === 3 ? 200 : 1300);
+    hud.banner(`${P.twist ? 'רגע… מה?!' : this.i ? 'קפיצת עידן!' : 'ההאקר'}<small>${P.tag}</small>`, 2.4);
+    if (P.twist) { pixi.out = true; pixi.tokens = 0; }
+    if (P.say) setTimeout(() => hud.say(P.say, P.sayT || 3.6), this.i === 3 ? 200 : 1300);
+    if (P.say2) setTimeout(() => hud.say(P.say2, 4), 6000);
   }
   update(dt, inp) {
     const r = this.cur.update(dt, inp);
     if (r === 'dead') return 'dead';
     if (r === 'win') {
       if (this.i === this.levels.length - 1) return 'win';
-      if (pixi.out) pixi.refill();
+      if (pixi.out && !this.phases[this.i + 1].twist) pixi.refill();
       audio.sfx('warp'); this.cur.dispose?.(); this.i++; this.begin();
     }
     return null;

@@ -1,6 +1,6 @@
 // מנוע top-down לעולמות 8 ו-16 ביט (ולשלבי 8/16 של קרב הבוס).
 // מפה נוצרת מ-seed (מקורית, לא מועתקת), אריחים 16px, דן + תולעים + חורי void + שברי קוד + פיקסי.
-import { loadSprite, loadTiles, drawSpr, SPR } from './assets.js';
+import { loadSprite, loadTiles, drawSpr, SPR, makeWornPixi } from './assets.js';
 import { rng, clamp, dist } from './util.js';
 import { audio } from './audio.js';
 import { hud } from './hud.js';
@@ -75,9 +75,10 @@ export class World2D {
 
   async load() {
     const c = this.cfg, e = c.era, names = new Set(['dan', 'pixi', c.enemy.name]);
-    if (c.miniboss) names.add(c.miniboss.name); if (c.arena) names.add(c.arena.boss);
+    if (c.miniboss) names.add(c.miniboss.name); if (c.arena && c.arena.boss !== 'pixi1') names.add(c.arena.boss);
     const [tiles] = await Promise.all([loadTiles(c.tiles), ...[...names].map((n) => loadSprite(e, n))]);
     this.tiles = tiles;
+    if (c.arena?.boss === 'pixi1') makeWornPixi(e);
   }
 
   start() {
@@ -123,6 +124,7 @@ export class World2D {
     } else { this.spawnBoss(c.arena.boss, (this.W >> 1) * T + 8, 4 * T); }
     createZones(this);
     pixi.reset(true);
+    this.swordMul = c.swordMul || 1;
   }
 
   // ---------- אריחים ----------
@@ -169,7 +171,7 @@ export class World2D {
   }
   spawnBoss(type, x, y) {
     const B = type === 'trojan' ? this.cfg.miniboss : this.cfg.arena;
-    const e = this.spawnEnemy(x, y, type, { hp: B.hp, max: B.hp, speed: B.speed, r: B.r, dmg: B.dmg || 1, boss: true, ai: 0, aiT: 1.5, rise: 0.8 });
+    const e = this.spawnEnemy(x, y, type, { hp: B.hp, max: B.hp, speed: B.speed, r: B.r, dmg: B.dmg || 1, boss: true, ai: 0, aiT: 1.5, rise: 0.8, scale: B.scale || 1 });
     if (B.outageHalf) e.onHalf = true;
     this.boss = e; return e;
   }
@@ -281,7 +283,7 @@ export class World2D {
     const tg = e.tgt && !e.tgt.dead && e.tgt.hp > 0 ? e.tgt : d;
     const dx = tg.x - e.x, dy = tg.y - e.y, L = Math.hypot(dx, dy) || 1;
     if (e.type === 'trojan') vx = this.aiTrojan(e, dt, dx / L, dy / L);
-    else if (e.type === 'hacker') vx = this.aiHacker(e, dt, dx / L, dy / L);
+    else if (e.type === 'hacker' || e.type === 'pixi1') vx = this.aiHacker(e, dt, dx / L, dy / L);
     else { // תולעת: מתפתלת לעבר דן
       const wob = Math.sin(e.t * 5) * 0.5, chase = L < 200 ? 1 : 0.35;
       vx = (dx / L + (-dy / L) * wob) * e.speed * chase; vy = (dy / L + (dx / L) * wob) * e.speed * chase;
@@ -377,11 +379,13 @@ export class World2D {
     ctx.save(); ctx.translate(-camX, -camY);
     const TS = this.tiles, cols = Math.floor(TS.im.width / T);
     const x0 = Math.max(0, Math.floor(camX / T)), y0 = Math.max(0, Math.floor(camY / T)), x1 = Math.min(this.W - 1, Math.ceil((camX + VW) / T)), y1 = Math.min(this.H - 1, Math.ceil((camY + VH) / T));
+    if (c.tint) ctx.filter = c.tint;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const n = this.map[y * this.W + x]; let idx = TS.j.tiles[n]; const an = TS.j.anims?.[n];
       if (an) idx = an.frames[Math.floor((this.t + (x * 7 + y * 3) * 0.13) * an.fps) % an.frames.length];
       ctx.drawImage(TS.im, (idx % cols) * T, Math.floor(idx / cols) * T, T, T, x * T, y * T, T, T);
     }
+    if (c.tint) ctx.filter = 'none';
     // שער
     if (this.gate && this.exitOpen) {
       const gx = this.gate.x * T, gy = this.gate.y * T, p = (this.t * 2) % 1;
@@ -430,7 +434,8 @@ export class World2D {
     const blink = e.inv > 0 && Math.floor(e.inv * 20) % 2;
     let anim = e.face; if (e.attackAnim > 0) anim = e.vx >= 0 ? 'attack_right' : 'attack_left';
     if (e.type === 'trojan' && e.ai === 1) anim = 'idle';
-    drawSpr(ctx, S, anim, e.t, e.x + (e.type === 'trojan' && e.ai === 1 ? (Math.random() - 0.5) * 2 : 0), e.y, blink ? 0.3 : 1);
+    if (e.type === 'pixi1') { anim = 'idle'; if (Math.random() < 0.04) { ctx.fillStyle = '#6e5038'; ctx.fillRect(Math.round(e.x - 20 + Math.random() * 40), Math.round(e.y - 60 + Math.random() * 50), 6, 2); } }
+    drawSpr(ctx, S, anim, e.t, e.x + (e.type === 'trojan' && e.ai === 1 ? (Math.random() - 0.5) * 2 : 0), e.y - (e.type === 'pixi1' ? 6 + Math.sin(e.t * 2) * 3 : 0), blink ? 0.3 : 1, e.scale || 1);
   }
   drawSlash(ctx, f) {
     const col = this.cfg.colors, a = f.t / 0.18, r = this.cfg.dan.reach * 0.9, base = Math.atan2(f.fy, f.fx);

@@ -93,3 +93,5 @@ button { font: inherit; color: inherit; }
 #mini-end p { margin: 0; font-size: 16px; color: #d8d0e6; }
 #mini-end .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 #mini-end .menu-btn { min-width: 140px; }
+
+.card-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }

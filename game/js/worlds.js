@@ -4,6 +4,7 @@ import { World3D } from './world3d.js';
 import { BossLevel } from './boss.js';
 
 const SNES = { coin: '#ffcf4a', bg: '#120e1c', dark: '#24412a', mid: '#4f8f3f', light: '#fff1b0', danger: '#ff3d6e', mark: '#ff3d6e', heart: '#ff3d6e', water: '#3b6fd6', bolt: '#ffffff', shadow: '#000000' };
+const SEPIA = { coin: '#ffcf4a', bg: '#1a120c', dark: '#3b2a1e', mid: '#6e5038', light: '#e8d2a8', danger: '#c4682a', mark: '#c4682a', heart: '#ff3d6e', water: '#4a3a2a', bolt: '#e8d2a8', shadow: '#000000' };
 const GB = { bg: '#0f380f', dark: '#306230', mid: '#8bac0f', light: '#bedc78', danger: '#0f380f', mark: '#0f380f', heart: '#0f380f', water: '#306230', bolt: '#bedc78' };
 
 export const WORLDS = {
@@ -67,6 +68,12 @@ const BOSS_PHASES = [
     make: () => new World3D({ era: 'modern', mode: 'arena', upgrade: true, seed: 11, bounds: 12, sky: '#120b22', fog: [10, 34], ground: ['#24233a', '#2c2a46', '#1b1a2c'], tree: '#3d2f6b', hemi: ['#b9c8ff', '#2a1530'],
       dan: { hp: 7, speed: 4.6, reach: 2, dmg: 1 }, worm: { hp: 3, speed: 2.4 },
       boss: { model: 'modern_hacker', label: 'ההאקר · מודרני', hp: 24, height: 2.3, boltEvery: 1.4, boltSpeed: 8, spread: [-0.45, -0.22, 0, 0.22, 0.45] } }) },
+  // הטוויסט: מאחורי ההאקר עמד פיקסי 1.0 – גרסה ישנה, חומה ובלויה
+  { name: 'הקרב האחרון · פיקסי 1.0', tag: 'פיקסי 1.0', eraIdx: 1, twist: true, sayT: 5,
+    say: 'רגע… החתימה בקוד של ההאקר… זה אני?! זה פיקסי 1.0. הגרסה הראשונה שלי. הוא זה שהפעיל אותו!',
+    say2: 'הוא לא רע… הוא פשוט לא עודכן אף פעם. תחליש אותו, דן. אל תמחק אותו.',
+    make: () => new World2D(ARENA2D('16bit', SEPIA, '16bit_kingdom_tileset', { swordMul: 3, tint: 'sepia(0.85) saturate(0.7) brightness(0.8)',
+      arena: { boss: 'pixi1', label: 'פיקסי 1.0', hp: 18, speed: 22, r: 12, dmg: 1, scale: 2, boltEvery: 1.5, boltSpeed: 80, spread: [-0.5, -0.25, 0, 0.25, 0.5] } })) },
 ];
 
 export function makeLevel(id) {

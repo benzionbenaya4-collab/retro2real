@@ -49,3 +49,29 @@ export function loadPacked(loader, path) {
   packed.set(path, p);
   return p;
 }
+
+/** פיקסי 1.0: נגזר מהספרייט של פיקסי – חום עמום, סדקים ופיקסלים חסרים. נרשם כ-`${era}/pixi1`. */
+export function makeWornPixi(era = '16bit') {
+  const S = SPR[`${era}/pixi`]; if (!S || !S.im.width) return null;
+  const c = document.createElement('canvas'); c.width = S.im.width; c.height = S.im.height;
+  const x = c.getContext('2d'); x.drawImage(S.im, 0, 0);
+  const id = x.getImageData(0, 0, c.width, c.height), d = id.data, fw = S.j.frameW, fh = S.j.frameH;
+  const PAL = [[40, 28, 20], [74, 54, 38], [112, 86, 60], [150, 124, 92]];
+  const h = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return v - Math.floor(v); };
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 10) continue;
+    const px = (i / 4) % c.width, py = Math.floor(i / 4 / c.width), lx = px % fw, ly = py % fh;
+    if (h(lx, ly) < 0.09) { d[i + 3] = 0; continue; } // פיקסלים חסרים (אותו נזק בכל פריים)
+    const lum = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) / 255, k = Math.min(3, Math.floor(lum * 4));
+    const p = PAL[k], dim = 0.85 + h(lx + 9, ly) * 0.2;
+    d[i] = p[0] * dim; d[i + 1] = p[1] * dim; d[i + 2] = p[2] * dim;
+  }
+  // סדקים: קווים כהים קבועים בכל פריים
+  const cracks = [[0.3, 0.2, 0.55, 0.5], [0.55, 0.5, 0.45, 0.75], [0.7, 0.3, 0.8, 0.55]];
+  for (let fy = 0; fy < c.height; fy += fh) for (let fx = 0; fx < c.width; fx += fw) for (const [a, b, e, f] of cracks) {
+    const n = 12; for (let k = 0; k <= n; k++) { const X = Math.round(fx + (a + (e - a) * k / n) * fw), Y = Math.round(fy + (b + (f - b) * k / n) * fh), j = (Y * c.width + X) * 4; if (d[j + 3] > 10) { d[j] = 20; d[j + 1] = 12; d[j + 2] = 8; } }
+  }
+  x.putImageData(id, 0, 0);
+  SPR[`${era}/pixi1`] = { j: S.j, im: c };
+  return SPR[`${era}/pixi1`];
+}

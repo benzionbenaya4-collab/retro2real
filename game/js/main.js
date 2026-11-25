@@ -48,7 +48,10 @@ $('#btn-new').onclick = () => { audio.unlock(); save = store.save({ world: 1 });
 function card(era, title, text, btn, onGo) {
   state = 'card'; screen('card'); hud.show(false); showTouch(false); $('#btn-menu').hidden = true;
   const el = scr.card; el.querySelector('.era').textContent = era; el.querySelector('h2').textContent = title; el.querySelector('p').textContent = text;
-  const b = el.querySelector('button'); b.textContent = btn; b.onclick = () => { audio.unlock(); onGo(); }; setTimeout(() => b.focus(), 50);
+  const box = el.querySelector('.card-btns'); box.innerHTML = '';
+  const list = Array.isArray(btn) ? btn : [[btn, onGo]];
+  list.forEach(([label, fn], i) => { const b = document.createElement('button'); b.className = 'menu-btn' + (i ? ' ghost' : ''); b.textContent = label; b.onclick = () => { audio.unlock(); fn(); }; box.appendChild(b); });
+  setTimeout(() => box.firstChild?.focus(), 50);
 }
 async function enterWorld(id, withCard) {
   worldId = id; const W = WORLDS[id];
@@ -75,10 +78,22 @@ function onResult(r) {
   const W = WORLDS[next];
   card(W.era, W.name, W.intro, 'יאללה', () => enterWorld(next, false));
 }
+// פיקסי 1.0 הובס – פיקסי צריך להחליט. בסוף מתקנים אותו.
 function finale() {
+  audio.play('title', 1);
+  card('פיקסי 1.0 · מושבת', 'מה עושים איתו?', 'פיקסי 1.0 שוכב על הרצפה, חום ובלוי, חצי מהפיקסלים שלו חסרים. פיקסי מסתכל עליך: "זאת ההחלטה שלי, נכון? …אבל מה אתה חושב?"', [
+    ['לתקן אותו 🔧', repair],
+    ['למחוק אותו', () => card('פיקסי 1.0 · מושבת', 'פיקסי עוצר', '"רגע… אני לא יכול. הוא הגרסה הראשונה שלי. בלעדיו לא הייתי קיים. הוא לא רשע, הוא פשוט אף פעם לא קיבל עדכון."', [['בסדר, נתקן אותו 🔧', repair]])],
+  ]);
+}
+function repair() {
+  audio.sfx('upgrade');
+  card('עדכון מותקן…', 'פיקסי 1.0 מתעורר', 'פיקסי מעביר לו את הטוקן האחרון שלו. הצבע חוזר, הסדקים נסגרים. פיקסי 1.0 ממצמץ: "תודה… כל מה שרציתי זה שמישהו יעדכן אותי."', 'ו…?', theEnd);
+}
+function theEnd() {
   save = store.save({ world: 1, best: Math.max(save.best || 0, 1) });
   audio.play('win', 3);
-  card('THE END · תודה ששיחקת', 'ניצחת את ההאקר!', 'חרב האינסוף החזירה את העולמות למקומם. פיקסי שרף על זה את כל הטוקנים שלו, ואומר שזה היה שווה כל טוקן. 😅', 'למסך הפתיחה', showTitle);
+  card('THE END · תודה ששיחקת', 'ניצחת!', 'ההאקר הובס, חרב האינסוף החזירה את העולמות למקומם, ופיקסי 1.0 תוקן. עכשיו יש שני פיקסים, ושניהם בלי טוקנים. 😅', 'למסך הפתיחה', showTitle);
 }
 
 // ---------- קלטות ----------
