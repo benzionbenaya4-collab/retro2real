@@ -5,7 +5,7 @@ import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
 import * as store from './save.js';
-import { WORLDS, makeLevel } from './worlds.js';
+import { WORLDS, makeLevel, load3D } from './worlds.js';
 import { makeMini, TAPES } from './minigames.js';
 import { loadSprite } from './assets.js';
 
@@ -63,8 +63,11 @@ async function enterWorld(id, withCard) {
   if (withCard && W.intro) return card(W.era, W.name, W.intro, 'יאללה', () => enterWorld(id, false));
   if (busy) return; busy = true; state = 'loading';
   screen(null); hud.reset(); hud.show(true); hud.setWorld(W.name);
-  level?.dispose?.(); level = makeLevel(id);
-  try { await level.load(); } catch (e) { console.error(e); }
+  level?.dispose?.(); level = null;
+  const slow = setTimeout(() => hud.banner('טוען…<small>מכין את העולם</small>', 30), 250);
+  try { level = await makeLevel(id); await level.load(); } catch (e) { console.error(e); }
+  clearTimeout(slow); hud.banner(null);
+  if (!level) { busy = false; return card('אופס', 'הטעינה נכשלה', 'בדוק את החיבור לאינטרנט ונסה שוב.', 'נסה שוב', () => enterWorld(id, false)); }
   busy = false;
   level.onChange = () => { fit(); syncCanvas(); };
   level.onTape = openTape;
@@ -182,8 +185,9 @@ setupTouch(); fit(); showTitle();
 requestAnimationFrame(frame);
 (async () => {
   try { await Promise.race([document.fonts?.ready, new Promise((r) => setTimeout(r, 2500))]); } catch { /* */ }
-  try { await makeLevel(1).load(); } catch (e) { console.error(e); }
+  try { await (await makeLevel(1)).load(); } catch (e) { console.error(e); }
   $('#loading').hidden = true; showTitle(); $('#press-start').focus?.();
+  setTimeout(() => load3D().catch(() => {}), 1500); // טעינה מוקדמת של התלת־ממד ברקע
 })();
 pixi.update(0);
 

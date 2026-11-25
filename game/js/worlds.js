@@ -1,6 +1,8 @@
 // הגדרות העולמות. 1: עמק 8 ביט · 2: ממלכת 16 ביט · 3: 32 ביט (three.js) · 4: קרב הבוס
 import { World2D } from './world2d.js';
-import { World3D } from './world3d.js';
+// three.js כבד (>1MB) – נטען רק כשצריך תלת־ממד, כדי שמסך הפתיחה יגיב מיד
+let w3 = null;
+export const load3D = () => (w3 ||= import('./world3d.js').then((m) => m.World3D).catch((e) => { w3 = null; throw e; }));
 import { BossLevel } from './boss.js';
 
 const SNES = { coin: '#ffcf4a', bg: '#120e1c', dark: '#24412a', mid: '#4f8f3f', light: '#fff1b0', danger: '#ff3d6e', mark: '#ff3d6e', heart: '#ff3d6e', water: '#3b6fd6', bolt: '#ffffff', shadow: '#000000' };
@@ -57,29 +59,29 @@ const ARENA2D = (era, colors, tiles, extra) => ({
 });
 const BOSS_PHASES = [
   { name: 'הקרב האחרון · 8 ביט', tag: '8 ביט', eraIdx: 0, say: 'זה ההאקר! הוא יורה קוד זדוני. תתחמק ותכה אותו מקרוב!',
-    make: () => new World2D(ARENA2D('8bit', GB, '8bit_valley_tileset', { arena: { boss: 'hacker', label: 'ההאקר · 8 ביט', hp: 8, speed: 20, r: 6, dmg: 1, boltEvery: 1.8, boltSpeed: 70, spread: [0], outageHalf: true } })) },
+    make: async () => new World2D(ARENA2D('8bit', GB, '8bit_valley_tileset', { arena: { boss: 'hacker', label: 'ההאקר · 8 ביט', hp: 8, speed: 20, r: 6, dmg: 1, boltEvery: 1.8, boltSpeed: 70, spread: [0], outageHalf: true } })) },
   { name: 'הקרב האחרון · 16 ביט', tag: '16 ביט', eraIdx: 1, say: 'הוא קפץ ל-16 ביט! עכשיו הוא יורה שלושה ברקים בבת אחת.',
-    make: () => new World2D(ARENA2D('16bit', SNES, '16bit_kingdom_tileset', { arena: { boss: 'hacker', label: 'ההאקר · 16 ביט', hp: 10, speed: 24, r: 8, dmg: 1, boltEvery: 1.7, boltSpeed: 85, spread: [-0.3, 0, 0.3] } })) },
+    make: async () => new World2D(ARENA2D('16bit', SNES, '16bit_kingdom_tileset', { arena: { boss: 'hacker', label: 'ההאקר · 16 ביט', hp: 10, speed: 24, r: 8, dmg: 1, boltEvery: 1.7, boltSpeed: 85, spread: [-0.3, 0, 0.3] } })) },
   { name: 'הקרב האחרון · 32 ביט', tag: '32 ביט', eraIdx: 2, say: 'פוליגונים! הוא מתחמק בטלפורט. תסתובב מהר!',
-    make: () => new World3D({ era: '32', mode: 'arena', low: 200, seed: 9, bounds: 11, sky: '#1d1236', fog: [7, 26], ground: ['#2d2a44', '#383356', '#221f36'], tree: '#5a3f8f',
+    make: async () => new (await load3D())({ era: '32', mode: 'arena', low: 200, seed: 9, bounds: 11, sky: '#1d1236', fog: [7, 26], ground: ['#2d2a44', '#383356', '#221f36'], tree: '#5a3f8f',
       dan: { hp: 6, speed: 4.2, reach: 1.9, dmg: 1 }, worm: { hp: 2, speed: 2 },
       boss: { model: '32bit_hacker', label: 'ההאקר · 32 ביט', hp: 8, height: 2.2, boltEvery: 2, boltSpeed: 6, spread: [-0.3, 0, 0.3] } }) },
   { name: 'הקרב האחרון · מודרני', tag: 'מודרני', eraIdx: 3,
-    make: () => new World3D({ era: 'modern', mode: 'arena', upgrade: true, seed: 11, bounds: 12, sky: '#120b22', fog: [10, 34], ground: ['#24233a', '#2c2a46', '#1b1a2c'], tree: '#3d2f6b', hemi: ['#b9c8ff', '#2a1530'],
+    make: async () => new (await load3D())({ era: 'modern', mode: 'arena', upgrade: true, seed: 11, bounds: 12, sky: '#120b22', fog: [10, 34], ground: ['#24233a', '#2c2a46', '#1b1a2c'], tree: '#3d2f6b', hemi: ['#b9c8ff', '#2a1530'],
       dan: { hp: 7, speed: 4.6, reach: 2, dmg: 1 }, worm: { hp: 3, speed: 2.4 },
       boss: { model: 'modern_hacker', label: 'ההאקר · מודרני', hp: 24, height: 2.3, boltEvery: 1.4, boltSpeed: 8, spread: [-0.45, -0.22, 0, 0.22, 0.45] } }) },
   // הטוויסט: מאחורי ההאקר עמד פיקסי 1.0 – גרסה ישנה, חומה ובלויה
   { name: 'הקרב האחרון · פיקסי 1.0', tag: 'פיקסי 1.0', eraIdx: 1, twist: true, sayT: 5,
     say: 'רגע… החתימה בקוד של ההאקר… זה אני?! זה פיקסי 1.0. הגרסה הראשונה שלי. הוא זה שהפעיל אותו!',
     say2: 'הוא לא רע… הוא פשוט לא עודכן אף פעם. תחליש אותו, דן. אל תמחק אותו.',
-    make: () => new World2D(ARENA2D('16bit', SEPIA, '16bit_kingdom_tileset', { swordMul: 3, tint: 'sepia(0.85) saturate(0.7) brightness(0.8)',
+    make: async () => new World2D(ARENA2D('16bit', SEPIA, '16bit_kingdom_tileset', { swordMul: 3, tint: 'sepia(0.85) saturate(0.7) brightness(0.8)',
       arena: { boss: 'pixi1', label: 'פיקסי 1.0', hp: 18, speed: 22, r: 12, dmg: 1, scale: 2, boltEvery: 1.5, boltSpeed: 80, spread: [-0.5, -0.25, 0, 0.25, 0.5] } })) },
 ];
 
-export function makeLevel(id) {
+export async function makeLevel(id) {
   const W = WORLDS[id];
   if (W.kind === '2d') return new World2D(W.cfg);
-  if (W.kind === '3d') return new World3D(W.cfg);
+  if (W.kind === '3d') return new (await load3D())(W.cfg);
   if (W.kind === 'boss') return new BossLevel(BOSS_PHASES);
   throw new Error('unknown world ' + id);
 }

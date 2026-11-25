@@ -4,11 +4,11 @@ import { hud } from './hud.js';
 import { pixi } from './pixi.js';
 
 export class BossLevel {
-  constructor(phases) { this.phases = phases; this.levels = phases.map((p) => p.make()); this.i = 0; }
+  constructor(phases) { this.phases = phases; this.levels = []; this.i = 0; }
   get cur() { return this.levels[this.i]; }
-  get is3d() { return !!this.cur.is3d; }
-  get cfg() { return this.cur.cfg; }
-  async load() { await Promise.all(this.levels.map((l) => l.load())); }
+  get is3d() { return !!this.cur?.is3d; }
+  get cfg() { return this.cur?.cfg; }
+  async load() { this.levels = await Promise.all(this.phases.map((p) => p.make())); await Promise.all(this.levels.map((l) => l.load())); }
   start() { this.i = 0; this.begin(); }
   begin() {
     const P = this.phases[this.i];
