@@ -95,3 +95,29 @@ button { font: inherit; color: inherit; }
 #mini-end .menu-btn { min-width: 140px; }
 
 .card-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* שחקן שני (coop) */
+.p2only { display: none; }
+body.coop .p2only { display: flex; }
+body.coop #stick2 { display: block; }
+#hearts2 { gap: 3px; font-size: 16px; line-height: 1; filter: drop-shadow(0 2px 0 #000); align-items: center; }
+#hearts2::before { content: "נועם"; font-size: 11px; font-weight: 700; color: var(--gold); margin-inline-end: 4px; }
+#hearts2 .h { color: var(--gold); }
+#hearts2 .h.off { color: #3a2f45; }
+.coop-btn { background: #ffffff0a; border: 2px solid var(--line); border-radius: 12px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+.coop-btn[aria-pressed="true"] { border-color: var(--gold); background: #ffcf4a22; }
+.coop-btn b { color: var(--gold); }
+#stick2 { position: absolute; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 10px); right: max(18px, env(safe-area-inset-right)); width: 128px; height: 128px; border-radius: 50%; background: #ffcf4a14; border: 2px solid #ffcf4a40; touch-action: none; }
+#stick2 i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: #ffcf4a40; border: 2px solid #ffcf4a80; }
+#btn-a2 { position: absolute; border-radius: 50%; border: 2px solid #ffffff70; touch-action: none; font-weight: 900; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 150px); right: calc(max(18px, env(safe-area-inset-right)) + 70px); width: 72px; height: 72px; background: #ffcf4a88; font-family: var(--f-pixel); font-size: 20px; justify-content: center; align-items: center; }
+#btn-a2.on { filter: brightness(1.6); }
+/* במסך מפוצל: A של שחקן 1 עובר לצד שמאל, ופיקסי למרכז */
+body.coop #btn-a { right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 70px); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 150px); width: 72px; height: 72px; }
+body.coop #btn-pixi { right: auto; left: 50%; transform: translateX(-50%); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 20px); }
+@media (max-width: 600px) {
+  body.coop .hud-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  body.coop #hearts { font-size: 15px; }
+  body.coop #hearts2 { font-size: 13px; }
+  body.coop #shards { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 44px); right: max(12px, env(safe-area-inset-right)); }
+}
+body.coop.touch #bubble { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 250px); }

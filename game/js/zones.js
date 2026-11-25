@@ -69,9 +69,9 @@ function fail(w, z) {
 
 export function updateZones(w, dt) {
   if (!w.zones?.length) return;
-  const d = w.dan;
   for (const z of w.zones) {
     if (z.state === 'done') continue;
+    const d = w.nearest ? (w.nearest(z.x, z.y) || w.dan) : w.dan;
     if (z.state === 'idle') { z.cool -= dt; if (z.cool <= 0 && dist(d.x, d.y, z.x, z.y) < (RAD + 3) * T) begin(w, z); continue; }
     z.t += dt;
     const edge = () => { const a = Math.random() * 6.28; return [z.x + Math.cos(a) * RAD * 0.6 * T, z.y + Math.sin(a) * RAD * 0.6 * T + 4]; };
@@ -81,8 +81,9 @@ export function updateZones(w, dt) {
       if (z.left === 0 && !w.enemies.some((e) => e.zone === z && !e.dead)) complete(w, z);
     } else if (z.type === 'part') {
       const p = z.part;
-      if (!p.carried && dist(d.x, d.y, p.x, p.y) < 11) { p.carried = true; audio.sfx('heart'); hud.say('מצאת! עכשיו תחזיר אותו לאזור.', 2.4); }
-      if (p.carried) { p.x = d.x; p.y = d.y - 26; if (dist(d.x, d.y, z.x, z.y) < (RAD + 1.6) * T) complete(w, z); }
+      const pk = !p.carried && (w.players || [w.dan]).find((q) => q.hp > 0 && dist(q.x, q.y, p.x, p.y) < 11);
+      if (pk) { p.carried = pk; audio.sfx('heart'); hud.say('מצאת! עכשיו תחזיר אותו לאזור.', 2.4); }
+      if (p.carried) { const cr = p.carried; p.x = cr.x; p.y = cr.y - 26; if (dist(cr.x, cr.y, z.x, z.y) < (RAD + 1.6) * T) complete(w, z); }
     } else if (z.type === 'defend') {
       const b = z.beacon; z.spawnT -= dt;
       if (z.spawnT <= 0) { const [x, y] = edge(); w.spawnEnemy(x, y, w.cfg.enemy.name, { zone: z, tgt: b, rise: 0.3 }); z.spawnT = w.cfg.era === '16bit' ? 2 : 2.6; }

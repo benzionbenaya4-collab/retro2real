@@ -8,6 +8,7 @@ import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
 import { clamp, rng } from './util.js';
+import { input } from './input.js';
 
 const V3 = THREE.Vector3;
 let R = null; // רנדרר יחיד לכל המשחק (הקשר WebGL אחד)
@@ -29,6 +30,7 @@ export class World3D {
     const fix = (g) => { g.scene.traverse((o) => { if (!o.isMesh) return; for (const m of [].concat(o.material)) { if (retro) { m.flatShading = true; if (m.map) pixelTex(m.map); } m.needsUpdate = true; } }); return g; };
     const jobs = [loadPacked(gltfLoader, `models/${retro ? '32bit' : 'modern'}_dan.gltf.json`).then(fix)];
     if (c.boss) jobs.push(loadPacked(gltfLoader, `models/${c.boss.model}.gltf.json`).then(fix));
+    this.noamG = input.coop ? await loadPacked(gltfLoader, `models/${retro ? '32bit' : 'modern'}_noam.gltf.json`).then(fix).catch((e) => { console.warn(e); return null; }) : null;
     jobs.push(new Promise((res) => texLoader.load(url('assets/sprites/16bit/pixi_sprite.png'), (t) => res(pixelTex(t)), undefined, () => res(null))));
     const [dan, boss, ptex] = await Promise.all(jobs.length === 3 ? jobs : [jobs[0], Promise.resolve(null), jobs[1]]);
     this.danG = dan; this.bossG = boss; this.pixiTex = ptex;
@@ -94,7 +96,14 @@ export class World3D {
     this.danC = buildFromScene(this.danG.scene, { height: 1.75 });
     this.danC.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     S.add(this.danC.root);
+    Object.assign(this.dan, { C: this.danC, id: 1 }); this.players = [this.dan]; this.noam = null;
+    if (input.coop && this.noamG) { // נועם – שחקן 2
+      const nc = buildFromScene(this.noamG.scene, { height: 1.55 }); nc.root.traverse((o) => { if (o.isMesh) o.castShadow = true; }); S.add(nc.root);
+      this.noam = { ...this.dan, pos: this.dan.pos.clone().add(new V3(1.2, 0, 0)), kb: new V3(), C: nc, id: 2, hp: D.hp }; this.players.push(this.noam);
+      const nm = canvasTex(16, 8, (x) => { x.fillStyle = '#ffcf4a'; x.fillRect(0, 0, 16, 8); }); const tg = new THREE.Sprite(new THREE.SpriteMaterial({ map: nm })); tg.scale.set(0.16, 0.08, 1); tg.position.y = 1.85; nc.root.add(tg);
+    }
     this.setSword(false);
+    if (this.noam) this.noam.C.setWeapon(this.makeSword(false), 'knife');
     // פיקסי
     this.pixiS = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.pixiTex, transparent: true }));
     this.pixiS.scale.set(0.4, 0.4, 1); S.add(this.pixiS); this.pixiS.position.set(0.6, 2, -B * 0.6);
@@ -145,7 +154,8 @@ export class World3D {
     this.resize(innerWidth, innerHeight);
   }
 
-  setSword(infinite) {
+  setSword(infinite) { this.danC.setWeapon(this.makeSword(infinite), 'knife'); if (infinite && this.noam) this.noam.C.setWeapon(this.makeSword(true), 'knife'); }
+  makeSword(infinite) {
     const g = new THREE.Group();
     if (!infinite) {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.06, 0.03), this.Mat({ color: '#d8dde6' })); blade.position.x = 0.5;
@@ -162,7 +172,7 @@ export class World3D {
       g.add(blade, tip, guard, grip, light); this.swordBlade = bm;
     }
     g.userData.gripPoint = new V3(0, 0, 0);
-    this.danC.setWeapon(g, 'knife');
+    return g;
   }
 
   startArena() {
@@ -212,35 +222,14 @@ export class World3D {
 
   // ---------- עדכון ----------
   update(dt, inp) {
-    const c = this.cfg, d = this.dan, B = c.bounds; this.t += dt;
-    if (this.result) { this.endT += dt; this.tickParts(dt); this.danC.anim.update(dt, { speed: 0 }); return this.endT > 1.4 ? this.result : null; }
+    const c = this.cfg, d = this.dan; this.t += dt;
+    if (this.result) { this.endT += dt; this.tickParts(dt); for (const p of this.players) p.C.anim.update(dt, { speed: 0 }); return this.endT > 1.4 ? this.result : null; }
     pixi.update(dt, this.cine <= 0 && (this.enemies.length > 0 || (this.boss && this.boss.hp > 0)));
     if (this.cine > 0) return this.cinematic(dt);
     if (inp.pixiPressed && pixi.tryScan()) this.showMarkers();
-    // דן – שליטת טנק (כמו פעם): ימינה/שמאלה מסובב, למעלה/למטה הולך
-    d.inv = Math.max(0, d.inv - dt); d.atkCd = Math.max(0, d.atkCd - dt); d.atkT += dt;
-    d.yaw -= inp.x * 2.6 * dt;
-    const fwd = new V3(Math.sin(d.yaw), 0, Math.cos(d.yaw));
-    const mv = -inp.y * c.dan.speed * pixi.speedMul() * (d.atkT < 0.25 ? 0.4 : 1);
-    if (pixi.boost > 0 && Math.abs(mv) > 0.5 && Math.random() < 0.3) this.burst(d.pos, '#ffcf4a', 1, 1.5);
-    d.pos.addScaledVector(fwd, mv * dt).addScaledVector(d.kb, dt); d.kb.multiplyScalar(Math.exp(-8 * dt));
-    this.collide(d.pos, 0.4);
-    const L = Math.hypot(d.pos.x, d.pos.z); if (L > B) d.pos.multiplyScalar(B / L);
-    this.danC.root.position.copy(d.pos); this.danC.root.rotation.y = d.yaw;
-    this.danC.anim.update(dt, { speed: Math.abs(mv) / c.dan.speed * 0.9, yawRate: -inp.x * 2.6 });
-    this.danC.root.visible = !(d.inv > 0 && Math.floor(d.inv * 14) % 2);
-    // חרב
-    this.nearTape = this.onTape ? this.tapes.find((t) => Math.hypot(t.g.position.x - d.pos.x, t.g.position.z - d.pos.z) < 1.1) : null;
+    this.nearTape = null;
+    for (const p of this.players) this.updatePlayer(p, p === d ? inp : inp.p2, dt);
     for (const t of this.tapes) { t.tag.visible = t === this.nearTape; t.g.rotation.y += t.gold ? dt : 0; }
-    if (inp.aPressed && this.nearTape) { inp.aPressed = false; this.onTape(this.nearTape); }
-    if (inp.aPressed && d.atkCd <= 0) { d.atkT = 0; d.atkCd = 0.42; d.hitDone = false; this.danC.anim.trigger('slash'); audio.sfx('swing'); }
-    if (!d.hitDone && d.atkT > 0.14) {
-      d.hitDone = true; const reach = c.dan.reach * (this.swordMul > 1 ? 1.25 : 1);
-      const hit = (p, r = 0.4) => { const v = new V3(p.x - d.pos.x, 0, p.z - d.pos.z), l = v.length(); return l < reach + r && (l < 0.8 || v.normalize().dot(fwd) > 0.25); };
-      for (const e of this.enemies) if (e.inv <= 0 && e.rise <= 0 && hit(e.pos)) this.hitWorm(e, fwd);
-      if (this.boss && this.boss.hp > 0 && this.boss.inv <= 0 && hit(this.boss.pos, 0.7)) this.hitBoss(fwd);
-      if (this.swordMul > 1) this.burst(d.pos.clone().addScaledVector(fwd, 1.4), '#6fe3ff', 6, 3);
-    }
     // תולעים
     for (const e of this.enemies) this.updateWorm(e, dt);
     this.enemies = this.enemies.filter((e) => !e.dead);
@@ -248,42 +237,81 @@ export class World3D {
     // ברקי קוד
     for (const b of this.bolts) {
       b.m.position.addScaledVector(b.v, dt); b.t += dt; b.m.rotation.x += dt * 8;
-      const chest = d.pos.clone(); chest.y = 1.1;
-      if (b.m.position.distanceTo(chest) < 0.6) { b.dead = true; this.hurt(1, b.v); }
+      const p = this.alive().find((q) => b.m.position.distanceTo(new V3(q.pos.x, 1.1, q.pos.z)) < 0.6);
+      if (p) { b.dead = true; this.hurt(p, 1, b.v); }
       if (b.t > 4) b.dead = true;
       if (b.dead) this.scene.remove(b.m);
     }
     this.bolts = this.bolts.filter((b) => !b.dead);
+    const near = (pos, r) => this.alive().some((q) => Math.hypot(pos.x - q.pos.x, pos.z - q.pos.z) < r);
     // שברי קוד
     for (const s of this.shards) {
       if (s.taken) continue; s.m.rotation.y += dt * 2; s.m.position.y = 0.9 + Math.sin(this.t * 3 + s.m.position.x) * 0.15;
-      if (s.m.position.distanceTo(new V3(d.pos.x, 0.9, d.pos.z)) < 1) {
+      if (near(s.m.position, 1)) {
         s.taken = true; this.got++; this.scene.remove(s.m); audio.sfx('shard'); this.burst(s.m.position, '#7dff9b', 14);
         hud.banner(`שבר קוד ${this.got}/${this.shards.length}`, 1.6);
       }
     }
     for (const k of this.coins) {
       if (k.taken) continue; k.m.rotation.z += dt * 3; k.m.position.y = 0.5 + Math.sin(this.t * 2) * 0.08;
-      if (Math.hypot(k.m.position.x - d.pos.x, k.m.position.z - d.pos.z) < 0.8) { k.taken = true; this.scene.remove(k.m); pixi.collectCoin(k.id); this.burst(k.m.position, '#ffcf4a', 16); }
+      if (near(k.m.position, 0.8)) { k.taken = true; this.scene.remove(k.m); pixi.collectCoin(k.id); this.burst(k.m.position, '#ffcf4a', 16); }
     }
     if (c.mode !== 'arena') this.updateWaves(dt);
     if (this.portal) {
       this.portal.rotation.z += dt * 2; this.portal.children[0].material.opacity = 0.5 + Math.sin(this.t * 6) * 0.2;
-      if (this.portal.position.distanceTo(new V3(d.pos.x, 1.3, d.pos.z)) < 1.4) { this.result = 'win'; audio.sfx('warp'); this.flash('#ffffff'); }
+      if (near(this.portal.position, 1.4)) { this.result = 'win'; audio.sfx('warp'); this.flash('#ffffff'); }
     }
-    if (d.hp <= 0) { this.result = 'dead'; audio.sfx('kill'); this.flash('#000000'); }
+    if (!this.alive().length) { this.result = 'dead'; audio.sfx('kill'); this.flash('#000000'); }
     this.tickParts(dt);
     for (const p of this.pillars) p.children[1].visible = Math.random() > 0.03;
     // סמנים
     if (pixi.scan > 0) for (const mk of this.markers) { if (mk.e && (mk.e.dead || !mk.e.pos)) { mk.s.visible = false; continue; } const p = mk.e ? mk.e.pos : mk.p; mk.s.position.set(p.x, (mk.h || 1.2) + Math.sin(this.t * 6) * 0.1, p.z); }
     else if (this.markers.length) { for (const mk of this.markers) this.scene.remove(mk.s); this.markers = []; }
-    hud.hearts(d.hp, c.dan.hp); hud.shards(this.got, this.shards.length);
+    hud.hearts(Math.max(0, d.hp), c.dan.hp); hud.hearts2(this.noam ? Math.max(0, this.noam.hp) : null, c.dan.hp); hud.shards(this.got, this.shards.length);
     if (this.boss && this.boss.hp > 0) hud.bossBar(c.boss.label, this.boss.hp / this.boss.max); else hud.bossBar(null);
     return null;
   }
+  alive() { return this.players.filter((p) => p.hp > 0); }
+  nearest(pos) { let b = null, bd = Infinity; for (const p of this.players) { if (p.hp <= 0) continue; const q = Math.hypot(pos.x - p.pos.x, pos.z - p.pos.z); if (q < bd) { bd = q; b = p; } } return b; }
+  /** שחקן: שליטת טנק (כמו פעם) – ימינה/שמאלה מסובב, למעלה/למטה הולך */
+  updatePlayer(d, inp, dt) {
+    const c = this.cfg, B = c.bounds, C = d.C;
+    d.inv = Math.max(0, d.inv - dt); d.atkCd = Math.max(0, d.atkCd - dt); d.atkT += dt;
+    if (d.hp <= 0) {
+      d.down = (d.down ?? 8) - dt; C.anim.update(dt, { speed: 0 }); C.root.visible = Math.floor(this.t * 4) % 2 === 0;
+      if (d.down <= 0 && this.alive().length) { d.hp = Math.ceil(c.dan.hp / 2); d.inv = 2; d.down = undefined; C.root.visible = true; hud.say(d.id === 2 ? 'נועם חזר! 💪' : 'דן חזר!', 2); audio.sfx('heart'); }
+      return;
+    }
+    d.yaw -= inp.x * 2.6 * dt;
+    const fwd = new V3(Math.sin(d.yaw), 0, Math.cos(d.yaw));
+    const mv = -inp.y * c.dan.speed * pixi.speedMul() * (d.atkT < 0.25 ? 0.4 : 1);
+    if (pixi.boost > 0 && Math.abs(mv) > 0.5 && Math.random() < 0.3) this.burst(d.pos, '#ffcf4a', 1, 1.5);
+    const old = d.pos.clone();
+    d.pos.addScaledVector(fwd, mv * dt).addScaledVector(d.kb, dt); d.kb.multiplyScalar(Math.exp(-8 * dt));
+    this.collide(d.pos, 0.4);
+    const L = Math.hypot(d.pos.x, d.pos.z); if (L > B) d.pos.multiplyScalar(B / L);
+    const o = this.players.find((q) => q !== d && q.hp > 0); // בשניים: לא מתרחקים מדי
+    if (o && d.pos.distanceTo(o.pos) > 11 && d.pos.distanceTo(o.pos) > old.distanceTo(o.pos)) d.pos.copy(old);
+    C.root.position.copy(d.pos); C.root.rotation.y = d.yaw;
+    C.anim.update(dt, { speed: Math.abs(mv) / c.dan.speed * 0.9, yawRate: -inp.x * 2.6 });
+    C.root.visible = !(d.inv > 0 && Math.floor(d.inv * 14) % 2);
+    // קלטת
+    const tape = this.onTape ? this.tapes.find((t) => Math.hypot(t.g.position.x - d.pos.x, t.g.position.z - d.pos.z) < 1.1) : null;
+    if (tape) this.nearTape = tape;
+    if (inp.aPressed && tape) { inp.aPressed = false; this.onTape(tape); return; }
+    // חרב
+    if (inp.aPressed && d.atkCd <= 0) { d.atkT = 0; d.atkCd = 0.42; d.hitDone = false; C.anim.trigger('slash'); audio.sfx('swing'); }
+    if (!d.hitDone && d.atkT > 0.14) {
+      d.hitDone = true; const reach = c.dan.reach * (this.swordMul > 1 ? 1.25 : 1);
+      const hit = (p, r = 0.4) => { const v = new V3(p.x - d.pos.x, 0, p.z - d.pos.z), l = v.length(); return l < reach + r && (l < 0.8 || v.normalize().dot(fwd) > 0.25); };
+      for (const e of this.enemies) if (e.inv <= 0 && e.rise <= 0 && hit(e.pos)) this.hitWorm(e, fwd);
+      if (this.boss && this.boss.hp > 0 && this.boss.inv <= 0 && hit(this.boss.pos, 0.7)) this.hitBoss(fwd);
+      if (this.swordMul > 1) this.burst(d.pos.clone().addScaledVector(fwd, 1.4), '#6fe3ff', 6, 3);
+    }
+  }
   collide(p, r) { for (const s of this.solids) { const dx = p.x - s.x, dz = p.z - s.z, l = Math.hypot(dx, dz), m = s.r + r; if (l < m && l > 1e-4) { p.x = s.x + (dx / l) * m; p.z = s.z + (dz / l) * m; } } }
-  hurt(n, dir) {
-    const d = this.dan; if (d.inv > 0) return; d.hp -= n; d.inv = 1.1; audio.sfx('hurt'); this.flash('#ff3d6e');
+  hurt(d, n, dir) {
+    if (d.hp <= 0 || d.inv > 0) return; d.hp -= n; d.inv = 1.1; audio.sfx('hurt'); this.flash('#ff3d6e');
     const v = new V3(dir.x, 0, dir.z); if (v.lengthSq() > 0) d.kb.copy(v.normalize().multiplyScalar(6));
   }
   flash(color) { const el = document.getElementById('stage'); el.style.boxShadow = `inset 0 0 0 100vmax ${color}55`; clearTimeout(this._fl); this._fl = setTimeout(() => (el.style.boxShadow = ''), 110); }
@@ -292,7 +320,7 @@ export class World3D {
     if (e.hp <= 0) { e.dead = true; this.waveKills++; audio.sfx('kill'); for (const s of e.segs) { this.burst(s.position, '#5fbf3a', 3); this.scene.remove(s); } }
   }
   updateWorm(e, dt) {
-    const d = this.dan; e.t += dt; e.inv = Math.max(0, e.inv - dt);
+    const d = this.nearest(e.pos) || this.dan; e.t += dt; e.inv = Math.max(0, e.inv - dt);
     if (e.rise > 0) { e.rise -= dt; e.segs.forEach((s) => (s.position.y = 0.3 - e.rise)); return; }
     const to = new V3(d.pos.x - e.pos.x, 0, d.pos.z - e.pos.z), L = to.length() || 1; to.divideScalar(L);
     const side = new V3(-to.z, 0, to.x).multiplyScalar(Math.sin(e.t * 4) * 0.6);
@@ -300,7 +328,7 @@ export class World3D {
     this.collide(e.pos, 0.3); e.pos.y = 0.3 + Math.abs(Math.sin(e.t * 8)) * 0.08;
     e.segs[0].lookAt(d.pos.x, 0.3, d.pos.z);
     for (let i = 1; i < e.segs.length; i++) { const a = e.segs[i - 1].position, b = e.segs[i].position, v = b.clone().sub(a); v.y = 0; const l = v.length(); if (l > 0.33) b.copy(a).add(v.multiplyScalar(0.33 / l)); b.y = 0.27 - i * 0.025 + Math.sin(e.t * 8 - i) * 0.05; }
-    if (e.segs.some((s) => e.inv <= 0 && Math.hypot(s.position.x - d.pos.x, s.position.z - d.pos.z) < 0.6)) this.hurt(1, new V3(d.pos.x - e.pos.x, 0, d.pos.z - e.pos.z));
+    for (const p of this.alive()) if (e.segs.some((s) => e.inv <= 0 && Math.hypot(s.position.x - p.pos.x, s.position.z - p.pos.z) < 0.6)) this.hurt(p, 1, new V3(p.pos.x - e.pos.x, 0, p.pos.z - e.pos.z));
     for (const s of e.segs) s.visible = !(e.inv > 0 && Math.floor(e.inv * 20) % 2);
   }
   hitBoss(fwd) {
@@ -312,7 +340,7 @@ export class World3D {
     }
   }
   updateBoss(dt) {
-    const b = this.boss, d = this.dan, B = this.cfg.boss; if (b.hp <= 0) return;
+    const b = this.boss, d = this.nearest(this.boss.pos) || this.dan, B = this.cfg.boss; if (b.hp <= 0) return;
     b.inv = Math.max(0, b.inv - dt); b.boltT -= dt; b.tpT -= dt; b.sumT -= dt;
     const to = new V3(d.pos.x - b.pos.x, 0, d.pos.z - b.pos.z), L = to.length() || 1;
     b.yaw = Math.atan2(to.x, to.z); b.c.root.rotation.y = b.yaw;
@@ -339,7 +367,7 @@ export class World3D {
   }
   cinematic(dt) { // רגע השדרוג: לפיקסי יש סוף־סוף מספיק טוקנים
     const before = this.cine; this.cine -= dt; const d = this.dan;
-    this.danC.root.position.copy(d.pos); this.danC.anim.update(dt, { speed: 0 });
+    this.danC.root.position.copy(d.pos); this.danC.anim.update(dt, { speed: 0 }); if (this.noam) this.noam.C.anim.update(dt, { speed: 0 });
     const at = (s) => before > s && this.cine <= s;
     if (at(5.1)) { pixi.tokens = pixi.max; hud.say('רגע… בדקתי. יש לי מספיק טוקנים! סוף־סוף! 🤩', 2.8); }
     if (at(2.6)) { hud.say('משדרג את החרב… שורף את כל הטוקנים… עכשיו!', 2.4); audio.sfx('upgrade'); }
@@ -386,6 +414,7 @@ export class World3D {
     this.parts = this.parts.filter((p) => !p.dead);
   }
   camFollow(dt) {
+    if (this.noam) return this.camCoop(dt);
     const d = this.dan, c = this.cam, s = Math.sin(d.yaw), co = Math.cos(d.yaw);
     const nar = c.aspect < 1, D = nar ? 4.8 : 3.7, sh = nar ? -0.3 : -0.8;
     const want = new V3(d.pos.x - s * D + co * sh, nar ? 2.9 : 2.45, d.pos.z - co * D - s * sh);
@@ -398,6 +427,20 @@ export class World3D {
     this.pixiS.material.opacity = pixi.out ? (Math.floor(this.t * 3) % 2 ? 0.35 : 0.65) : 1;
     if (this.pixiL) { this.pixiL.position.copy(this.pixiS.position); this.pixiL.intensity = pixi.out ? 0.3 : 3; }
     if (this.sun.castShadow) { this.sun.position.set(d.pos.x + 8, 14, d.pos.z + 6); this.sun.target.position.copy(d.pos); this.sun.target.updateMatrixWorld(); }
+  }
+  /** שניים: מצלמה גבוהה בכיוון קבוע, מאחורי נקודת האמצע, מתרחקת כשהם מתרחקים */
+  camCoop(dt) {
+    const al = this.alive().length ? this.alive() : this.players, c = this.cam;
+    const mid = al.reduce((a, p) => a.add(p.pos), new V3()).multiplyScalar(1 / al.length);
+    const sep = this.players.length > 1 ? this.players[0].pos.distanceTo(this.players[1].pos) : 0, D = 5.5 + sep * 0.55;
+    const want = new V3(mid.x, 3.6 + sep * 0.45, mid.z - D);
+    if (!this.camInit) { c.position.copy(want); this.camInit = true; }
+    c.position.lerp(want, 1 - Math.exp(-6 * dt)); c.lookAt(mid.x, 0.8, mid.z + 1.5);
+    const d = this.dan.hp > 0 ? this.dan : this.noam, pp = new V3(d.pos.x + 0.6, 2.05 + Math.sin(this.t * 4) * 0.08, d.pos.z - 0.3);
+    this.pixiS.position.lerp(pp, 1 - Math.exp(-6 * dt));
+    this.pixiS.material.opacity = pixi.out ? (Math.floor(this.t * 3) % 2 ? 0.35 : 0.65) : 1;
+    if (this.pixiL) { this.pixiL.position.copy(this.pixiS.position); this.pixiL.intensity = pixi.out ? 0.3 : 3; }
+    if (this.sun.castShadow) { this.sun.position.set(mid.x + 8, 14, mid.z + 6); this.sun.target.position.copy(mid); this.sun.target.updateMatrixWorld(); }
   }
   render() {
     if (!R) return;

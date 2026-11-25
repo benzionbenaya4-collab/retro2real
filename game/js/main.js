@@ -1,6 +1,6 @@
 // מרטרו לרגיל – לולאה ראשית, מסך פתיחה, כרטיסי עולם, השהיה, שמירה.
 import { $ } from './util.js';
-import { input, poll, endFrame, setupTouch, showTouch } from './input.js';
+import { input, poll, endFrame, setupTouch, showTouch, setCoop } from './input.js';
 import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
@@ -29,6 +29,11 @@ function screen(name) { for (const [k, el] of Object.entries(scr)) el.hidden = k
 // ---------- מסך פתיחה ----------
 const soundBtn = $('#btn-sound');
 const syncSound = () => (soundBtn.textContent = audio.on ? '🔊' : '🔇');
+// שחקן שני (נועם) – על אותו מכשיר
+const coopBtn = $('#btn-coop');
+const syncCoop = () => { coopBtn.setAttribute('aria-pressed', String(input.coop)); coopBtn.querySelector('b').textContent = input.coop ? 'נועם מצטרף!' : 'כבוי'; };
+coopBtn.onclick = () => { audio.unlock(); setCoop(!input.coop); save = store.save({ coop: input.coop }); syncCoop(); audio.sfx(input.coop ? 'heart' : 'empty'); };
+setCoop(!!save.coop); syncCoop();
 soundBtn.onclick = () => { audio.unlock(); audio.setOn(!audio.on); save = store.save({ sound: audio.on }); syncSound(); }; syncSound();
 
 function showTitle() {
@@ -70,7 +75,7 @@ async function enterWorld(id, withCard) {
 }
 function onResult(r) {
   showTouch(false);
-  if (r === 'dead') return card('GAME OVER', 'דן נפל…', 'פיקסי שמר נקודת ביקורת בתחילת העולם. ננסה שוב?', 'נסה שוב', () => enterWorld(worldId, false));
+  if (r === 'dead') return card('GAME OVER', input.coop ? 'דן ונועם נפלו…' : 'דן נפל…', 'פיקסי שמר נקודת ביקורת בתחילת העולם. ננסה שוב?', 'נסה שוב', () => enterWorld(worldId, false));
   const next = WORLDS[worldId].next;
   if (!next && WORLDS[worldId].final) return finale();
   if (!next) return card('TO BE CONTINUED', 'המשך יבוא…', 'השער פתוח, אבל העולם הבא עדיין בבנייה. פיקסי כבר מחמם את השרתים.', 'למסך הפתיחה', showTitle);

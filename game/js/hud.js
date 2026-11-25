@@ -2,7 +2,7 @@
 import { $ } from './util.js';
 import { audio } from './audio.js';
 
-const el = { hud: $('#hud'), hearts: $('#hearts'), shards: $('#shards'), name: $('#world-name'), tk: $('#tokens'), tkBar: $('#tokens .tk-bar i'), tkNum: $('#tokens .tk-num'),
+const el = { hud: $('#hud'), hearts: $('#hearts'), hearts2: $('#hearts2'), shards: $('#shards'), name: $('#world-name'), tk: $('#tokens'), tkBar: $('#tokens .tk-bar i'), tkNum: $('#tokens .tk-num'),
   bubble: $('#bubble'), bubbleP: $('#bubble p'), banner: $('#banner'), boss: $('#boss-bar'), bossName: $('#boss-name'), bossBar: $('#boss-bar .bb i'), boost: $('#boost'), boostBar: $('#boost i') };
 let last = {};
 export const hud = {
@@ -11,6 +11,10 @@ export const hud = {
   hearts(hp, max) {
     const k = hp + '/' + max; if (last.h === k) return; last.h = k;
     el.hearts.innerHTML = Array.from({ length: max }, (_, i) => `<span class="h${i < hp ? '' : ' off'}">♥</span>`).join('');
+  },
+  hearts2(hp, max) {
+    const k = hp == null ? 'none' : hp + '/' + max; if (last.h2 === k) return; last.h2 = k;
+    el.hearts2.innerHTML = hp == null ? '' : Array.from({ length: max }, (_, i) => `<span class="h${i < hp ? '' : ' off'}">♥</span>`).join('');
   },
   shards(n, total) { const k = `◆ ${n}/${total}`; if (last.s === k) return; last.s = k; el.shards.textContent = total ? k : ''; },
   tokens(v, max) {
