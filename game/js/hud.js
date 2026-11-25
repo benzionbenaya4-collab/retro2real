@@ -3,10 +3,10 @@ import { $ } from './util.js';
 import { audio } from './audio.js';
 
 const el = { hud: $('#hud'), hearts: $('#hearts'), shards: $('#shards'), name: $('#world-name'), tk: $('#tokens'), tkBar: $('#tokens .tk-bar i'), tkNum: $('#tokens .tk-num'),
-  bubble: $('#bubble'), bubbleP: $('#bubble p'), banner: $('#banner'), boss: $('#boss-bar'), bossName: $('#boss-name'), bossBar: $('#boss-bar .bb i') };
+  bubble: $('#bubble'), bubbleP: $('#bubble p'), banner: $('#banner'), boss: $('#boss-bar'), bossName: $('#boss-name'), bossBar: $('#boss-bar .bb i'), boost: $('#boost'), boostBar: $('#boost i') };
 let last = {};
 export const hud = {
-  show(on) { el.hud.hidden = !on; if (!on) { this.say(null); this.banner(null); this.bossBar(null); } },
+  show(on) { el.hud.hidden = !on; if (!on) { this.say(null); this.banner(null); this.bossBar(null); this.boost(0); } },
   setWorld(name) { el.name.textContent = name; },
   hearts(hp, max) {
     const k = hp + '/' + max; if (last.h === k) return; last.h = k;
@@ -16,6 +16,9 @@ export const hud = {
   tokens(v, max) {
     const k = Math.round(v); if (last.t === k) return; last.t = k;
     el.tkBar.style.width = (100 * v / max) + '%'; el.tkNum.textContent = k; el.tk.classList.toggle('empty', k <= 0);
+  },
+  boost(frac) {
+    const on = frac > 0; if (el.boost.hidden === on) el.boost.hidden = !on; if (on) el.boostBar.style.width = (frac * 100) + '%';
   },
   bossBar(name, frac) {
     if (!name) { el.boss.hidden = true; last.b = null; return; }

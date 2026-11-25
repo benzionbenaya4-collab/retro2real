@@ -188,14 +188,15 @@ export class World3D {
   update(dt, inp) {
     const c = this.cfg, d = this.dan, B = c.bounds; this.t += dt;
     if (this.result) { this.endT += dt; this.tickParts(dt); this.danC.anim.update(dt, { speed: 0 }); return this.endT > 1.4 ? this.result : null; }
-    pixi.update(dt);
+    pixi.update(dt, this.cine <= 0 && (this.enemies.length > 0 || (this.boss && this.boss.hp > 0)));
     if (this.cine > 0) return this.cinematic(dt);
     if (inp.pixiPressed && pixi.tryScan()) this.showMarkers();
     // דן – שליטת טנק (כמו פעם): ימינה/שמאלה מסובב, למעלה/למטה הולך
     d.inv = Math.max(0, d.inv - dt); d.atkCd = Math.max(0, d.atkCd - dt); d.atkT += dt;
     d.yaw -= inp.x * 2.6 * dt;
     const fwd = new V3(Math.sin(d.yaw), 0, Math.cos(d.yaw));
-    const mv = -inp.y * c.dan.speed * (d.atkT < 0.25 ? 0.4 : 1);
+    const mv = -inp.y * c.dan.speed * pixi.speedMul() * (d.atkT < 0.25 ? 0.4 : 1);
+    if (pixi.boost > 0 && Math.abs(mv) > 0.5 && Math.random() < 0.3) this.burst(d.pos, '#ffcf4a', 1, 1.5);
     d.pos.addScaledVector(fwd, mv * dt).addScaledVector(d.kb, dt); d.kb.multiplyScalar(Math.exp(-8 * dt));
     this.collide(d.pos, 0.4);
     const L = Math.hypot(d.pos.x, d.pos.z); if (L > B) d.pos.multiplyScalar(B / L);

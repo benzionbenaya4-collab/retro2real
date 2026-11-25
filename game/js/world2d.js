@@ -154,12 +154,13 @@ export class World2D {
   update(dt, inp) {
     const c = this.cfg, d = this.dan; this.t += dt; d.t += dt;
     if (this.result) { this.endT += dt; this.updateParts(dt); return this.endT > 1.4 ? this.result : null; }
-    pixi.update(dt);
+    pixi.update(dt, this.enemies.some((e) => !e.dead && e.rise <= 0));
     if (inp.pixiPressed) pixi.tryScan();
 
     // דן: תזוזה
     d.inv = Math.max(0, d.inv - dt); d.atkCd = Math.max(0, d.atkCd - dt); d.atkT += dt;
-    const sp = c.dan.speed * (d.atkT < 0.14 ? 0.45 : 1);
+    const sp = c.dan.speed * pixi.speedMul() * (d.atkT < 0.14 ? 0.45 : 1);
+    if (pixi.boost > 0 && d.moving && Math.random() < 0.6) this.part(d.x - inp.x * 6, d.y - 4, c.colors.light, 0.3, 10);
     d.moving = Math.hypot(inp.x, inp.y) > 0.1;
     if (d.moving) {
       if (Math.abs(inp.x) > Math.abs(inp.y)) d.face = inp.x > 0 ? 'right' : 'left'; else d.face = inp.y > 0 ? 'down' : 'up';

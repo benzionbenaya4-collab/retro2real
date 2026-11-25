@@ -32,6 +32,10 @@ button { font: inherit; color: inherit; }
 #tokens.empty { border-color: var(--glitch); animation: shake .4s 2; }
 #tokens.empty .tk-label, #tokens.empty .tk-num { color: var(--glitch); }
 @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+#boost { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 38px); left: calc(max(12px, env(safe-area-inset-left)) + 46px); display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--gold); border-radius: 10px; padding: 4px 8px; }
+#boost span { font-size: 13px; }
+#boost .bt { width: 72px; height: 8px; background: #000; border-radius: 4px; overflow: hidden; }
+#boost .bt i { display: block; height: 100%; width: 100%; background: var(--gold); }
 #boss-bar { position: absolute; top: 46px; left: 50%; transform: translateX(-50%); width: min(60vw, 360px); text-align: center; font-size: 12px; font-weight: 700; text-shadow: 0 1px 0 #000; }
 #boss-bar .bb { height: 8px; background: #000; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-top: 3px; }
 #boss-bar .bb i { display: block; height: 100%; width: 100%; background: var(--glitch); }

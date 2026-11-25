@@ -72,6 +72,7 @@ class Audio {
       case 'wave': [57, 57, 64].forEach((m, i) => this.tone('square', hz(m), t + i * 0.12, 0.1, 0.07)); break;
       case 'warp': this.tone('sawtooth', 100, t, 0.9, 0.08, this.master, 12); this.noise(t, 0.9, 0.06, this.master, 800); break;
       case 'bolt': this.tone('sawtooth', 900, t, 0.15, 0.05, this.master, 0.3); break;
+      case 'boost': [60, 67, 72, 79].forEach((m, i) => this.tone('sawtooth', hz(m), t + i * 0.04, 0.1, 0.05)); this.tone('square', 300, t, 0.4, 0.04, this.master, 3); break;
       case 'start': [60, 67, 72, 79, 84].forEach((m, i) => this.tone('square', hz(m), t + i * 0.07, 0.12, 0.08)); break;
       case 'upgrade': for (let i = 0; i < 12; i++) this.tone(i % 2 ? 'sawtooth' : 'square', hz(60 + i * 2), t + i * 0.08, 0.2, 0.06); break;
     }
