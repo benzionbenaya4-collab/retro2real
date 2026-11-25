@@ -5,6 +5,7 @@ import { rng, clamp, dist } from './util.js';
 import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
+import { createZones, updateZones, drawZones, zoneArrows } from './zones.js';
 
 const T = 16;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -105,6 +106,7 @@ export class World2D {
         }
       }
     } else { this.spawnBoss(c.arena.boss, (this.W >> 1) * T + 8, 4 * T); }
+    createZones(this);
     pixi.reset(true);
   }
 
@@ -136,7 +138,7 @@ export class World2D {
   restore(px, py, rad) {
     const cx = Math.floor(px / T), cy = Math.floor(py / T); let n = 0;
     for (let y = cy - rad; y <= cy + rad; y++) for (let x = cx - rad; x <= cx + rad; x++) {
-      if (Math.hypot(x - cx, y - cy) > rad + 0.5 || this.tile(x, y) !== 'void') continue;
+      if (Math.hypot(x - cx, y - cy) > rad + 0.5 || this.tile(x, y) !== 'void' || this.zoneOf[y * this.W + x] >= 0) continue;
       this.map[y * this.W + x] = this.base[y * this.W + x]; n++;
       for (let k = 0; k < 3; k++) this.part(x * T + 8, y * T + 8, this.cfg.colors.light, 0.7);
     }
@@ -221,6 +223,7 @@ export class World2D {
     if (this.voidMax > 0) { this.voidT += dt; const every = c.voidEvery * (1 + this.got * 0.25); if (this.voidT > every) { this.voidT = 0; this.spreadVoid(); } }
 
     this.updateWaves(dt);
+    updateZones(this, dt);
     if (this.boss && this.boss.onHalf && this.boss.hp <= this.boss.max / 2 && !this.boss.halfDone) { this.boss.halfDone = true; pixi.runOut(); }
     if (this.exitOpen && this.gate && dist(d.x, d.y, this.gate.x * T + 8, this.gate.y * T + 12) < 12) { this.result = 'win'; audio.sfx('warp'); }
     if (d.hp <= 0) { this.result = 'dead'; audio.sfx('kill'); }
@@ -258,7 +261,8 @@ export class World2D {
     const d = this.dan; e.t += dt; e.inv = Math.max(0, e.inv - dt);
     if (e.rise > 0) { e.rise -= dt; return; }
     let vx = 0, vy = 0;
-    const dx = d.x - e.x, dy = d.y - e.y, L = Math.hypot(dx, dy) || 1;
+    const tg = e.tgt && !e.tgt.dead && e.tgt.hp > 0 ? e.tgt : d;
+    const dx = tg.x - e.x, dy = tg.y - e.y, L = Math.hypot(dx, dy) || 1;
     if (e.type === 'trojan') vx = this.aiTrojan(e, dt, dx / L, dy / L);
     else if (e.type === 'hacker') vx = this.aiHacker(e, dt, dx / L, dy / L);
     else { // תולעת: מתפתלת לעבר דן
@@ -370,6 +374,7 @@ export class World2D {
     for (const s of this.shards) if (!s.taken) this.drawShard(ctx, s.x, s.y - 6 + Math.sin(this.t * 3 + s.x) * 2);
     for (const it of this.items) if (it.t < 9 || Math.floor(it.t * 8) % 2) this.drawHeart(ctx, it.x, it.y - 4);
     for (const k of this.coins) if (!k.taken) this.drawCoin(ctx, k.x, k.y);
+    drawZones(ctx, this);
     // ישויות לפי y
     const list = [...this.enemies.map((e) => ({ y: e.y, f: () => this.drawEnemy(ctx, e) })), { y: d.y, f: () => this.drawDan(ctx) }];
     list.sort((a, b) => a.y - b.y).forEach((o) => o.f());
@@ -384,6 +389,7 @@ export class World2D {
     ctx.restore();
     // חצים מחוץ למסך + מפה
     if (pixi.scan > 0) this.drawScanHud(ctx, VW, VH);
+    zoneArrows(ctx, this, VW, VH);
     if (this.exitOpen && this.gate) this.edgeArrow(ctx, VW, VH, this.gate.x * T + 8, this.gate.y * T + 8, col.light, Math.floor(this.t * 4) % 2 ? 6 : 5);
     if (this.flash > 0) { ctx.fillStyle = col.light; ctx.globalAlpha = this.flash * 3; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
     if (this.result) { ctx.fillStyle = this.result === 'win' ? col.light : col.bg; ctx.globalAlpha = Math.min(1, this.endT / 1.2); ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }

@@ -1,6 +1,6 @@
 // Service worker: network-first (so updates arrive), cache fallback (so the installed game works offline).
-const CACHE = 'r2r-v3';
-self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './game/', './manifest.webmanifest', './icon-192.png', './icon-512.png']).catch(() => {}))); });
+const CACHE = 'r2r-v4';
+self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './game/', './manifest.webmanifest', './icon-192.png', './icon-512.png', './three/three.module.js', './three/addons/loaders/GLTFLoader.js', './three/addons/utils/BufferGeometryUtils.js']).catch(() => {}))); });
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', (e) => {
   const r = e.request; if (r.method !== 'GET') return;
