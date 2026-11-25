@@ -19,7 +19,7 @@ function genMap(cfg) {
     const mx = W >> 1, my = H >> 1;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const ring = Math.abs(Math.hypot((x - mx) / (W / 2 - 3), (y - my) / (H / 2 - 3)) - 0.8) < 0.12; set(x, y, x < 1 || y < 1 || x >= W - 1 || y >= H - 1 ? 'wall' : Math.abs(x - mx) <= 1 || Math.abs(y - my) <= 1 || ring ? 'path' : 'grass'); }
     for (const [x, y] of [[4, 3], [W - 5, 3], [4, H - 4], [W - 5, H - 4]]) set(x, y, 'tree');
-    return { g, start: { x: W >> 1, y: H - 3 }, shardSpots: [], gate: null };
+    return { g, start: { x: W >> 1, y: H - 3 }, shardSpots: [], gate: null, coinSpots: [] };
   }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) set(x, y, 'tree');
   for (let i = 0; i < (W * H) / 70; i++) { const cx = 2 + Math.floor(r() * (W - 4)), cy = 2 + Math.floor(r() * (H - 4)), rad = 1 + r() * 1.6;
@@ -52,7 +52,20 @@ function genMap(cfg) {
   carve(cur, gate);
   for (const p of [start, ...spots]) for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) if (at(p.x + x, p.y + y) === 'tree' || at(p.x + x, p.y + y) === 'water') set(p.x + x, p.y + y, 'grass');
   set(gate.x, gate.y, 'path');
-  return { g, start, shardSpots: spots, gate };
+  // מקומות מחבוא למטבעות קוד: תאי דשא נגישים שמוקפים בעצים (פינות נסתרות)
+  const reach = new Uint8Array(W * H), q = [start.y * W + start.x]; reach[q[0]] = 1;
+  const pass = (x, y) => ['grass', 'path'].includes(at(x, y));
+  while (q.length) { const i = q.pop(), x = i % W, y = (i / W) | 0; for (const [dx, dy] of DIRS) { const nx = x + dx, ny = y + dy, j = ny * W + nx; if (pass(nx, ny) && !reach[j]) { reach[j] = 1; q.push(j); } } }
+  const hidden = [];
+  for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++) {
+    if (!reach[y * W + x] || at(x, y) !== 'grass' || Math.hypot(x - start.x, y - start.y) < 8) continue;
+    let n = 0; for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (at(x + xx, y + yy) === 'tree' || at(x + xx, y + yy) === 'water') n++;
+    if (n >= 5 && !spots.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) hidden.push({ x, y, n });
+  }
+  hidden.sort((a, b) => b.n - a.n || r() - 0.5);
+  const coinSpots = [];
+  for (const h of hidden) { if (coinSpots.length >= (cfg.coins || 0)) break; if (coinSpots.every((c) => Math.hypot(c.x - h.x, c.y - h.y) > 10)) coinSpots.push(h); }
+  return { g, start, shardSpots: spots, gate, coinSpots };
 }
 
 // ---------- העולם ----------
@@ -75,6 +88,7 @@ export class World2D {
     this.dan = { x: m.start.x * T + 8, y: m.start.y * T + 12, face: 'up', hface: 'right', hp: D.hp, inv: 0, atkT: 9, atkCd: 0, moving: false, kx: 0, ky: 0, t: 0, safe: null, fall: 0 };
     this.dan.safe = { x: this.dan.x, y: this.dan.y };
     this.shards = m.shardSpots.map((p) => ({ x: p.x * T + 8, y: p.y * T + 10, taken: false }));
+    this.coins = m.coinSpots.map((p, i) => ({ id: `${c.key}-c${i}`, x: p.x * T + 8, y: p.y * T + 11, taken: false })).filter((k) => !pixi.hasCoin(k.id));
     this.got = 0; this.enemies = []; this.items = []; this.bolts = []; this.parts = []; this.fx = [];
     this.t = 0; this.shake = 0; this.flash = 0; this.voidT = 0; this.voidMax = c.voidMax || 0;
     this.wave = -1; this.waveOn = false; this.toSpawn = 0; this.spawnT = 0; this.nextWaveT = 2.5; this.waveKills = 0; this.waveT = 0; this.waveN = 0;
@@ -86,8 +100,8 @@ export class World2D {
       for (let k = 0; k < (c.voidSeeds || 5); k++) {
         for (let tries = 0; tries < 60; tries++) {
           const x = 3 + Math.floor(r() * (this.W - 6)), y = 3 + Math.floor(r() * (this.H - 6));
-          if (Math.hypot(x * T - this.dan.x, y * T - this.dan.y) < 10 * T || this.tile(x, y) !== 'grass') continue;
-          this.setVoid(x, y); for (let i = 0; i < 4; i++) this.spreadVoid(true); break;
+          if (Math.hypot(x * T - this.dan.x, y * T - this.dan.y) < 10 * T || this.tile(x, y) !== 'grass' || this.coins.some((k) => Math.hypot(k.x - x * T, k.y - y * T) < 4 * T)) continue;
+          this.setVoid(x, y); for (let i = 0; i < 4; i++) this.spreadVoid(true, true); break;
         }
       }
     } else { this.spawnBoss(c.arena.boss, (this.W >> 1) * T + 8, 4 * T); }
@@ -105,16 +119,17 @@ export class World2D {
   }
   setVoid(x, y) { this.map[y * this.W + x] = 'void'; }
   voidCells() { const out = []; for (let i = 0; i < this.map.length; i++) if (this.map[i] === 'void') out.push(i); return out; }
-  spreadVoid(force) {
+  spreadVoid(force, seed) {
     const cells = this.voidCells(); if (!cells.length || (!force && cells.length >= this.voidMax)) return;
     const dtx = Math.floor(this.dan.x / T), dty = Math.floor(this.dan.y / T);
     for (let tries = 0; tries < 12; tries++) {
       const i = cells[Math.floor(Math.random() * cells.length)], [ox, oy] = DIRS[Math.floor(Math.random() * 4)];
       const x = (i % this.W) + ox, y = Math.floor(i / this.W) + oy, n = this.tile(x, y);
       if (!['grass', 'path', 'tree'].includes(n) || x < 2 || y < 2 || x >= this.W - 2 || y >= this.H - 2) continue;
-      if (!force && Math.max(Math.abs(x - dtx), Math.abs(y - dty)) < 3) continue;
+      if (!seed && Math.max(Math.abs(x - dtx), Math.abs(y - dty)) < 3) continue;
       if (this.gate && Math.abs(x - this.gate.x) + Math.abs(y - this.gate.y) < 3) continue;
       if (this.shards.some((s) => !s.taken && Math.floor(s.x / T) === x && Math.floor(s.y / T) === y)) continue;
+      if (this.coins.some((s) => !s.taken && Math.abs(Math.floor(s.x / T) - x) <= 1 && Math.abs(Math.floor(s.y / T) - y) <= 1)) continue;
       this.setVoid(x, y); return true;
     }
   }
@@ -200,6 +215,7 @@ export class World2D {
     for (const it of this.items) { it.t += dt; if (dist(it.x, it.y, d.x, d.y) < 10) { it.dead = true; if (it.kind === 'heart') { d.hp = Math.min(c.dan.hp, d.hp + 1); audio.sfx('heart'); } } if (it.t > 12) it.dead = true; }
     this.items = this.items.filter((i) => !i.dead);
     for (const s of this.shards) if (!s.taken && dist(s.x, s.y, d.x, d.y) < 11) this.takeShard(s);
+    for (const k of this.coins) if (!k.taken && dist(k.x, k.y, d.x, d.y) < 10) { k.taken = true; pixi.collectCoin(k.id); for (let i = 0; i < 12; i++) this.part(k.x, k.y - 4, c.colors.coin || c.colors.light, 0.7, 90); }
 
     // void מתפשט
     if (this.voidMax > 0) { this.voidT += dt; const every = c.voidEvery * (1 + this.got * 0.25); if (this.voidT > every) { this.voidT = 0; this.spreadVoid(); } }
@@ -353,6 +369,7 @@ export class World2D {
     // שברי קוד
     for (const s of this.shards) if (!s.taken) this.drawShard(ctx, s.x, s.y - 6 + Math.sin(this.t * 3 + s.x) * 2);
     for (const it of this.items) if (it.t < 9 || Math.floor(it.t * 8) % 2) this.drawHeart(ctx, it.x, it.y - 4);
+    for (const k of this.coins) if (!k.taken) this.drawCoin(ctx, k.x, k.y);
     // ישויות לפי y
     const list = [...this.enemies.map((e) => ({ y: e.y, f: () => this.drawEnemy(ctx, e) })), { y: d.y, f: () => this.drawDan(ctx) }];
     list.sort((a, b) => a.y - b.y).forEach((o) => o.f());
@@ -401,6 +418,14 @@ export class World2D {
     ctx.fillStyle = col.dark; ctx.fillRect(x - 1, y - 5, 2, 10); ctx.fillRect(x - 3, y - 3, 6, 6); ctx.fillRect(x - 5, y - 1, 10, 2);
     ctx.fillStyle = Math.floor(this.t * 5) % 2 ? col.light : col.mid; ctx.fillRect(x - 1, y - 3, 2, 6); ctx.fillRect(x - 3, y - 1, 6, 2);
     ctx.fillStyle = col.shadow || col.dark; ctx.globalAlpha = 0.5; ctx.fillRect(x - 3, y + 9, 6, 2); ctx.globalAlpha = 1;
+  }
+  drawCoin(ctx, x, y) { // מטבע קוד: עיגול קטן עם <> ונצנוץ מדי פעם
+    const col = this.cfg.colors, w = Math.abs(Math.cos(this.t * 2.5)); x = Math.round(x); y = Math.round(y - 5 + Math.sin(this.t * 2) * 1.5);
+    const hw = Math.max(1, Math.round(3 * w));
+    ctx.fillStyle = col.dark; ctx.fillRect(x - hw - 1, y - 4, hw * 2 + 2, 8);
+    ctx.fillStyle = col.coin || col.light; ctx.fillRect(x - hw, y - 3, hw * 2, 6);
+    if (hw > 2) { ctx.fillStyle = col.dark; ctx.fillRect(x - 2, y - 1, 1, 2); ctx.fillRect(x + 1, y - 1, 1, 2); }
+    if ((this.t * 0.7 + x * 0.01) % 2 < 0.15) { ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 3, y - 6, 1, 3); ctx.fillRect(x + 2, y - 5, 3, 1); }
   }
   drawHeart(ctx, x, y) {
     const col = this.cfg.colors; x = Math.round(x); y = Math.round(y); ctx.fillStyle = col.heart || col.dark;

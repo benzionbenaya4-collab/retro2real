@@ -111,6 +111,18 @@ export class World3D {
       this.solids = this.solids.filter((s) => Math.hypot(s.x - m.position.x, s.z - m.position.z) > 1.6);
       S.add(m); this.shards.push({ m, taken: false });
     }
+    // מטבע קוד מוחבא מאחורי סלע/עץ ליד הקצה
+    this.coins = [];
+    if (c.coins) {
+      const far = [...this.solids].sort((a, b) => Math.hypot(b.x, b.z) - Math.hypot(a.x, a.z));
+      const cm = new THREE.MeshStandardMaterial({ color: '#ffcf4a', emissive: '#a06a00', emissiveIntensity: 0.8, metalness: 0.6, roughness: 0.3, flatShading: true });
+      for (let i = 0; i < c.coins && i < far.length; i++) {
+        const id = `${c.key}-c${i}`; if (pixi.hasCoin(id)) continue;
+        const s0 = far[i * 3], L = Math.hypot(s0.x, s0.z) || 1, k = (L + s0.r + 0.6) / L;
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.06, retro ? 8 : 20), cm); m.rotation.x = Math.PI / 2;
+        m.position.set(s0.x * k, 0.5, s0.z * k); S.add(m); this.coins.push({ id, m, taken: false });
+      }
+    }
     // סמנים לסריקה
     this.markTex = canvasTex(16, 16, (x) => { x.fillStyle = '#ff3d6e'; x.beginPath(); x.moveTo(2, 2); x.lineTo(14, 2); x.lineTo(8, 13); x.closePath(); x.fill(); x.fillStyle = '#fff'; x.fillRect(7, 4, 2, 4); });
     this.shardMarkTex = canvasTex(16, 16, (x) => { x.fillStyle = '#7dff9b'; x.beginPath(); x.moveTo(8, 1); x.lineTo(15, 8); x.lineTo(8, 15); x.lineTo(1, 8); x.closePath(); x.fill(); });
@@ -232,6 +244,10 @@ export class World3D {
         s.taken = true; this.got++; this.scene.remove(s.m); audio.sfx('shard'); this.burst(s.m.position, '#7dff9b', 14);
         hud.banner(`שבר קוד ${this.got}/${this.shards.length}`, 1.6);
       }
+    }
+    for (const k of this.coins) {
+      if (k.taken) continue; k.m.rotation.z += dt * 3; k.m.position.y = 0.5 + Math.sin(this.t * 2) * 0.08;
+      if (Math.hypot(k.m.position.x - d.pos.x, k.m.position.z - d.pos.z) < 0.8) { k.taken = true; this.scene.remove(k.m); pixi.collectCoin(k.id); this.burst(k.m.position, '#ffcf4a', 16); }
     }
     if (c.mode !== 'arena') this.updateWaves(dt);
     if (this.portal) {
