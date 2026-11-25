@@ -22,7 +22,7 @@ export function createZones(w) {
       const cx = 5 + Math.floor(r() * (w.W - 10)), cy = 5 + Math.floor(r() * (w.H - 10));
       if (Math.hypot(cx * T - w.dan.x, cy * T - w.dan.y) < 11 * T) continue;
       if (w.gate && Math.hypot(cx - w.gate.x, cy - w.gate.y) < 7) continue;
-      if (!far(cx, cy, w.shards, 5) || !far(cx, cy, w.coins, 5) || w.zones.some((z) => Math.hypot(z.cx - cx, z.cy - cy) < 9)) continue;
+      if (!far(cx, cy, w.shards, 5) || !far(cx, cy, w.keep, 5) || w.zones.some((z) => Math.hypot(z.cx - cx, z.cy - cy) < 9)) continue;
       let ok = true;
       for (let y = -4; y <= 4 && ok; y++) for (let x = -4; x <= 4; x++) if (Math.hypot(x, y) <= RAD + 1.5 && ['path', 'castle', 'wall'].includes(w.base[(cy + y) * w.W + cx + x])) { ok = false; break; }
       if (!ok) continue;

@@ -20,7 +20,7 @@ function genMap(cfg) {
     const mx = W >> 1, my = H >> 1;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const ring = Math.abs(Math.hypot((x - mx) / (W / 2 - 3), (y - my) / (H / 2 - 3)) - 0.8) < 0.12; set(x, y, x < 1 || y < 1 || x >= W - 1 || y >= H - 1 ? 'wall' : Math.abs(x - mx) <= 1 || Math.abs(y - my) <= 1 || ring ? 'path' : 'grass'); }
     for (const [x, y] of [[4, 3], [W - 5, 3], [4, H - 4], [W - 5, H - 4]]) set(x, y, 'tree');
-    return { g, start: { x: W >> 1, y: H - 3 }, shardSpots: [], gate: null, coinSpots: [] };
+    return { g, start: { x: W >> 1, y: H - 3 }, shardSpots: [], gate: null, coinSpots: [], hidden: [] };
   }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) set(x, y, 'tree');
   for (let i = 0; i < (W * H) / 70; i++) { const cx = 2 + Math.floor(r() * (W - 4)), cy = 2 + Math.floor(r() * (H - 4)), rad = 1 + r() * 1.6;
@@ -61,12 +61,12 @@ function genMap(cfg) {
   for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++) {
     if (!reach[y * W + x] || at(x, y) !== 'grass' || Math.hypot(x - start.x, y - start.y) < 8) continue;
     let n = 0; for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (at(x + xx, y + yy) === 'tree' || at(x + xx, y + yy) === 'water') n++;
-    if (n >= 5 && !spots.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) hidden.push({ x, y, n });
+    if (n >= 4 && !spots.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) hidden.push({ x, y, n });
   }
   hidden.sort((a, b) => b.n - a.n || r() - 0.5);
   const coinSpots = [];
   for (const h of hidden) { if (coinSpots.length >= (cfg.coins || 0)) break; if (coinSpots.every((c) => Math.hypot(c.x - h.x, c.y - h.y) > 10)) coinSpots.push(h); }
-  return { g, start, shardSpots: spots, gate, coinSpots };
+  return { g, start, shardSpots: spots, gate, coinSpots, hidden };
 }
 
 // ---------- העולם ----------
@@ -90,6 +90,21 @@ export class World2D {
     this.dan.safe = { x: this.dan.x, y: this.dan.y };
     this.shards = m.shardSpots.map((p) => ({ x: p.x * T + 8, y: p.y * T + 10, taken: false }));
     this.coins = m.coinSpots.map((p, i) => ({ id: `${c.key}-c${i}`, x: p.x * T + 8, y: p.y * T + 11, taken: false })).filter((k) => !pixi.hasCoin(k.id));
+    // קלטות: רגילות ליד שביל, קלטת הזהב במחבוא
+    this.tapes = []; const tr = rng(c.seed * 17 + 3);
+    for (const tp of c.tapes || []) {
+      let p = null;
+      if (tp.gold) p = m.hidden.find((h) => m.coinSpots.every((k) => Math.hypot(k.x - h.x, k.y - h.y) > 6)) || m.hidden.find((h) => m.coinSpots.every((k) => Math.hypot(k.x - h.x, k.y - h.y) > 2));
+      else for (let tries = 0; tries < 600 && !p; tries++) {
+        const i = Math.floor(tr() * this.map.length), x = i % this.W, y = (i / this.W) | 0; if (this.map[i] !== 'path') continue;
+        const [ox, oy] = DIRS[Math.floor(tr() * 4)], nx = x + ox, ny = y + oy;
+        if (this.tile(nx, ny) !== 'grass' || Math.hypot(nx - m.start.x, ny - m.start.y) < 9) continue;
+        if (this.shards.some((q) => Math.hypot(q.x / T - nx, q.y / T - ny) < 4) || this.tapes.some((q) => Math.hypot(q.x / T - nx, q.y / T - ny) < 10)) continue;
+        p = { x: nx, y: ny };
+      }
+      if (p) this.tapes.push({ ...tp, x: p.x * T + 8, y: p.y * T + 11 });
+    }
+    this.keep = [...this.coins, ...this.tapes];
     this.got = 0; this.enemies = []; this.items = []; this.bolts = []; this.parts = []; this.fx = [];
     this.t = 0; this.shake = 0; this.flash = 0; this.voidT = 0; this.voidMax = c.voidMax || 0;
     this.wave = -1; this.waveOn = false; this.toSpawn = 0; this.spawnT = 0; this.nextWaveT = 2.5; this.waveKills = 0; this.waveT = 0; this.waveN = 0;
@@ -101,7 +116,7 @@ export class World2D {
       for (let k = 0; k < (c.voidSeeds || 5); k++) {
         for (let tries = 0; tries < 60; tries++) {
           const x = 3 + Math.floor(r() * (this.W - 6)), y = 3 + Math.floor(r() * (this.H - 6));
-          if (Math.hypot(x * T - this.dan.x, y * T - this.dan.y) < 10 * T || this.tile(x, y) !== 'grass' || this.coins.some((k) => Math.hypot(k.x - x * T, k.y - y * T) < 4 * T)) continue;
+          if (Math.hypot(x * T - this.dan.x, y * T - this.dan.y) < 10 * T || this.tile(x, y) !== 'grass' || this.keep.some((k) => Math.hypot(k.x - x * T, k.y - y * T) < 4 * T)) continue;
           this.setVoid(x, y); for (let i = 0; i < 4; i++) this.spreadVoid(true, true); break;
         }
       }
@@ -131,7 +146,7 @@ export class World2D {
       if (!seed && Math.max(Math.abs(x - dtx), Math.abs(y - dty)) < 3) continue;
       if (this.gate && Math.abs(x - this.gate.x) + Math.abs(y - this.gate.y) < 3) continue;
       if (this.shards.some((s) => !s.taken && Math.floor(s.x / T) === x && Math.floor(s.y / T) === y)) continue;
-      if (this.coins.some((s) => !s.taken && Math.abs(Math.floor(s.x / T) - x) <= 1 && Math.abs(Math.floor(s.y / T) - y) <= 1)) continue;
+      if (this.keep.some((s) => !s.taken && Math.abs(Math.floor(s.x / T) - x) <= 1 && Math.abs(Math.floor(s.y / T) - y) <= 1)) continue;
       this.setVoid(x, y); return true;
     }
   }
@@ -192,6 +207,8 @@ export class World2D {
     } else if (this.tileAt(d.x - 5, d.y - 2) !== 'void' && this.tileAt(d.x + 5, d.y - 2) !== 'void' && this.tileAt(d.x, d.y + 3) !== 'void' && this.tileAt(d.x, d.y - 8) !== 'void') { d.safe.x = d.x; d.safe.y = d.y; }
 
     // חרב
+    this.nearTape = this.onTape ? this.tapes.find((t) => dist(t.x, t.y, d.x, d.y) < 15) : null;
+    if (inp.aPressed && this.nearTape) { inp.aPressed = false; this.onTape(this.nearTape); }
     if (inp.aPressed && d.atkCd <= 0) {
       d.atkT = 0; d.atkCd = 0.3; audio.sfx('swing');
       const [fx, fy] = { right: [1, 0], left: [-1, 0], down: [0, 1], up: [0, -1] }[d.face];
@@ -375,6 +392,7 @@ export class World2D {
     for (const it of this.items) if (it.t < 9 || Math.floor(it.t * 8) % 2) this.drawHeart(ctx, it.x, it.y - 4);
     for (const k of this.coins) if (!k.taken) this.drawCoin(ctx, k.x, k.y);
     drawZones(ctx, this);
+    for (const tp of this.tapes) this.drawTape(ctx, tp);
     // ישויות לפי y
     const list = [...this.enemies.map((e) => ({ y: e.y, f: () => this.drawEnemy(ctx, e) })), { y: d.y, f: () => this.drawDan(ctx) }];
     list.sort((a, b) => a.y - b.y).forEach((o) => o.f());
@@ -424,6 +442,19 @@ export class World2D {
     ctx.fillStyle = col.dark; ctx.fillRect(x - 1, y - 5, 2, 10); ctx.fillRect(x - 3, y - 3, 6, 6); ctx.fillRect(x - 5, y - 1, 10, 2);
     ctx.fillStyle = Math.floor(this.t * 5) % 2 ? col.light : col.mid; ctx.fillRect(x - 1, y - 3, 2, 6); ctx.fillRect(x - 3, y - 1, 6, 2);
     ctx.fillStyle = col.shadow || col.dark; ctx.globalAlpha = 0.5; ctx.fillRect(x - 3, y + 9, 6, 2); ctx.globalAlpha = 1;
+  }
+  drawTape(ctx, tp) { // קלטת קטנה על הרצפה (זהב = נדירה ונוצצת)
+    const col = this.cfg.colors, x = Math.round(tp.x), y = Math.round(tp.y - 4), done = pixi.hasCoin('tape-' + tp.id);
+    const body = tp.gold ? '#ffcf4a' : col.tape || col.mid;
+    ctx.fillStyle = col.dark; ctx.fillRect(x - 7, y - 5, 14, 10);
+    ctx.fillStyle = body; ctx.fillRect(x - 6, y - 4, 12, 8);
+    ctx.fillStyle = col.dark; ctx.fillRect(x - 4, y - 2, 3, 3); ctx.fillRect(x + 1, y - 2, 3, 3); ctx.fillRect(x - 3, y + 2, 6, 2);
+    if (tp.gold && !done) { const k = (this.t * 1.3) % 3; if (k < 0.6) { ctx.fillStyle = '#ffffff'; const sx = x - 8 + Math.round(k * 25); ctx.fillRect(sx, y - 8, 1, 3); ctx.fillRect(sx - 1, y - 7, 3, 1); } }
+    if (done) { ctx.fillStyle = col.light; ctx.fillRect(x + 5, y - 8, 2, 2); ctx.fillRect(x + 7, y - 10, 2, 2); }
+    if (this.nearTape === tp) { // בועת "A"
+      const by = y - 20 + (Math.floor(this.t * 3) % 2); ctx.fillStyle = col.bg; ctx.fillRect(x - 6, by - 6, 12, 11); ctx.fillStyle = col.light; ctx.fillRect(x - 5, by - 5, 10, 9);
+      ctx.fillStyle = col.bg; ctx.fillRect(x - 2, by - 3, 4, 1); ctx.fillRect(x - 3, by - 2, 1, 5); ctx.fillRect(x + 2, by - 2, 1, 5); ctx.fillRect(x - 2, by, 4, 1);
+    }
   }
   drawCoin(ctx, x, y) { // מטבע קוד: עיגול קטן עם <> ונצנוץ מדי פעם
     const col = this.cfg.colors, w = Math.abs(Math.cos(this.t * 2.5)); x = Math.round(x); y = Math.round(y - 5 + Math.sin(this.t * 2) * 1.5);

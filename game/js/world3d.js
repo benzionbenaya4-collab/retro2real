@@ -123,6 +123,20 @@ export class World3D {
         m.position.set(s0.x * k, 0.5, s0.z * k); S.add(m); this.coins.push({ id, m, taken: false });
       }
     }
+    // קלטות
+    this.tapes = [];
+    (c.tapes || []).forEach((tp, i) => {
+      const g = new THREE.Group(), a = Math.PI + i * 0.9, R0 = B * 0.38;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, 0.32), Mat({ color: tp.gold ? '#ffcf4a' : '#3b6fd6' }));
+      const lab = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.075, 0.12), Mat({ color: '#efe9f7' })); lab.position.z = -0.06;
+      g.add(body, lab);
+      for (const sx of [-0.11, 0.11]) { const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.08, 8), Mat({ color: '#1b1724' })); reel.position.set(sx, 0.005, 0.05); g.add(reel); }
+      g.position.set(Math.cos(a) * R0, 0.05, Math.sin(a) * R0); g.rotation.y = a;
+      this.solids = this.solids.filter((q) => Math.hypot(q.x - g.position.x, q.z - g.position.z) > 1.4);
+      const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.aTex || (this.aTex = canvasTex(16, 16, (x) => { x.fillStyle = '#ffcf4a'; x.fillRect(1, 1, 14, 14); x.fillStyle = '#1b1724'; x.font = '12px monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('A', 8, 9); })), depthTest: false }));
+      tag.scale.set(0.35, 0.35, 1); tag.position.y = 0.7; tag.visible = false; g.add(tag);
+      S.add(g); this.tapes.push({ ...tp, g, tag });
+    });
     // סמנים לסריקה
     this.markTex = canvasTex(16, 16, (x) => { x.fillStyle = '#ff3d6e'; x.beginPath(); x.moveTo(2, 2); x.lineTo(14, 2); x.lineTo(8, 13); x.closePath(); x.fill(); x.fillStyle = '#fff'; x.fillRect(7, 4, 2, 4); });
     this.shardMarkTex = canvasTex(16, 16, (x) => { x.fillStyle = '#7dff9b'; x.beginPath(); x.moveTo(8, 1); x.lineTo(15, 8); x.lineTo(8, 15); x.lineTo(1, 8); x.closePath(); x.fill(); });
@@ -216,6 +230,9 @@ export class World3D {
     this.danC.anim.update(dt, { speed: Math.abs(mv) / c.dan.speed * 0.9, yawRate: -inp.x * 2.6 });
     this.danC.root.visible = !(d.inv > 0 && Math.floor(d.inv * 14) % 2);
     // חרב
+    this.nearTape = this.onTape ? this.tapes.find((t) => Math.hypot(t.g.position.x - d.pos.x, t.g.position.z - d.pos.z) < 1.1) : null;
+    for (const t of this.tapes) { t.tag.visible = t === this.nearTape; t.g.rotation.y += t.gold ? dt : 0; }
+    if (inp.aPressed && this.nearTape) { inp.aPressed = false; this.onTape(this.nearTape); }
     if (inp.aPressed && d.atkCd <= 0) { d.atkT = 0; d.atkCd = 0.42; d.hitDone = false; this.danC.anim.trigger('slash'); audio.sfx('swing'); }
     if (!d.hitDone && d.atkT > 0.14) {
       d.hitDone = true; const reach = c.dan.reach * (this.swordMul > 1 ? 1.25 : 1);
