@@ -1,7 +1,7 @@
 // קלט: מקלדת + ג'ויסטיק מגע + כפתורי A / פיקסי.
 // שחקן שני (coop) על אותו מכשיר: שחקן 1 = WASD + J, שחקן 2 = חצים + Enter.
 // בטלפון: מסך מפוצל – ג'ויסטיק ו-A משמאל לשחקן 1, ומימין לשחקן 2.
-import { $ } from './util.js';
+import { $, mapDelta } from './util.js';
 
 const mk = () => ({ x: 0, y: 0, a: false, aPressed: false, toolPressed: false, toolSwitch: false, cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } });
 export const input = { x: 0, y: 0, a: false, aPressed: false, toolPressed: false, toolSwitch: false, pixiPressed: false, startPressed: false, pausePressed: false, touch: false, coop: false, coopMode: null, mode3d: false, p2: mk(), cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } };
@@ -33,7 +33,7 @@ function bindStick(el, st) {
   const knob = el.querySelector('i');
   const move = (e) => {
     const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = r.width / 2;
-    let dx = (e.clientX - cx) / R, dy = (e.clientY - cy) / R; const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
+    let [dx, dy] = mapDelta((e.clientX - cx) / R, (e.clientY - cy) / R); const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
     const f = flipped(el) ? -1 : 1; st.x = dx * f; st.y = dy * f; // משטח מסובב 180° (מצב שולחן) knob.style.transform = `translate(${dx * R * 0.6}px, ${dy * R * 0.6}px)`;
   };
   el.addEventListener('pointerdown', (e) => { st.id = e.pointerId; el.setPointerCapture(e.pointerId); move(e); });
@@ -101,7 +101,7 @@ export function setupCamDrag() {
   const drag = (el, target, k = 1) => {
     let id = null, lx = 0, ly = 0;
     el.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; id = e.pointerId; lx = e.clientX; ly = e.clientY; try { el.setPointerCapture(id); } catch { /* */ } });
-    el.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; const f = flipped(el) ? -k : k; target().dx += (e.clientX - lx) * f; target().dy += (e.clientY - ly) * f; lx = e.clientX; ly = e.clientY; });
+    el.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; const f = flipped(el) ? -k : k, [mx, my] = mapDelta(e.clientX - lx, e.clientY - ly); target().dx += mx * f; target().dy += my * f; lx = e.clientX; ly = e.clientY; });
     const up = (e) => { if (e.pointerId === id) id = null; };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   };

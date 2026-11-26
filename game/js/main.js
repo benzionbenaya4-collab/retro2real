@@ -1,5 +1,5 @@
 // מרטרו לרגיל – לולאה ראשית, מסך פתיחה, כרטיסי עולם, השהיה, שמירה.
-import { $ } from './util.js';
+import { $, viewW, viewH } from './util.js';
 import { input, poll, endFrame, setupTouch, showTouch, setCoop, setupCamDrag, setMode3d } from './input.js';
 import { audio } from './audio.js';
 import { hud } from './hud.js';
@@ -17,7 +17,7 @@ let save = store.load(); audio.setOn(save.sound);
 let state = 'title', level = null, worldId = 1, VW = 320, VH = 180, busy = false;
 
 function fit() {
-  const base = level?.cfg?.base || 176, iw = innerWidth, ih = innerHeight, s = Math.min(iw, ih) / base;
+  const base = level?.cfg?.base || 176, iw = viewW(), ih = viewH(), s = Math.min(iw, ih) / base;
   VW = Math.max(120, Math.round(iw / s)); VH = Math.max(120, Math.round(ih / s));
   if (view.width !== VW || view.height !== VH) { view.width = VW; view.height = VH; }
   ctx.imageSmoothingEnabled = false;
@@ -51,15 +51,11 @@ function lockOrientation(mode) {
 const rotateEl = $('#rotate');
 function checkOrientation() {
   const m = input.coopMode, playing = ['play', 'pause', 'mini', 'loading', 'result'].includes(state);
-  let bad = false;
-  if (m && input.touch && playing) bad = m === 'side' ? innerWidth < innerHeight : innerWidth > innerHeight;
-  if (rotateEl.hidden === !bad) return bad;
-  rotateEl.hidden = !bad;
-  if (bad) {
-    rotateEl.querySelector('p').textContent = m === 'side' ? 'סובבו את הטלפון לרוחב' : 'סובבו את הטלפון לאורך';
-    rotateEl.querySelector('small').textContent = m === 'side' ? 'דן משמאל, נועם מימין' : 'והניחו אותו על השולחן: דן למטה, נועם למעלה';
-  }
-  return bad;
+  // במקום לבקש לסובב (אפליקציה מותקנת נעולה בכיוון אחד) – מסובבים את מכולת המשחק 90° ב-CSS
+  let rot = false;
+  if (m && input.touch && (playing || state === 'card' || state === 'ending')) rot = m === 'side' ? innerWidth < innerHeight : innerWidth > innerHeight;
+  if (document.body.classList.contains('rot90') !== rot) { document.body.classList.toggle('rot90', rot); fit(); if (state === 'mini') miniFit(); }
+  return false;
 }
 soundBtn.onclick = () => { audio.unlock(); audio.setOn(!audio.on); save = store.save({ sound: audio.on }); syncSound(); }; syncSound();
 
@@ -143,7 +139,7 @@ function theEnd() {
 const mini = { el: $('#mini'), c: $('#mini-c'), end: $('#mini-end'), game: null, tape: null, W: 240, H: 160 };
 const mctx = mini.c.getContext('2d');
 function miniFit() {
-  const s = Math.min(innerWidth, innerHeight) / 170; mini.W = Math.round(innerWidth / s); mini.H = Math.round(innerHeight / s);
+  const s = Math.min(viewW(), viewH()) / 170; mini.W = Math.round(viewW() / s); mini.H = Math.round(viewH() / s);
   if (mini.c.width !== mini.W || mini.c.height !== mini.H) { mini.c.width = mini.W; mini.c.height = mini.H; }
   mctx.imageSmoothingEnabled = false;
 }

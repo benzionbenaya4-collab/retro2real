@@ -7,7 +7,7 @@ import { loadPacked, url } from './assets.js';
 import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
-import { clamp, rng } from './util.js';
+import { clamp, rng, viewW, viewH } from './util.js';
 import { input } from './input.js';
 import { VIRUS, pickVirus, CONFUSE_TIME } from './viruses.js';
 import { toolTick, toolHud, TRAP_STUN, TRAP_MAX, ZOOM_TIME } from './tools.js';
@@ -154,7 +154,7 @@ export class World3D {
     this.shardMarkTex = canvasTex(16, 16, (x) => { x.fillStyle = '#7dff9b'; x.beginPath(); x.moveTo(8, 1); x.lineTo(15, 8); x.lineTo(8, 15); x.lineTo(1, 8); x.closePath(); x.fill(); });
     if (c.mode === 'arena') this.startArena();
     pixi.reset(true);
-    this.resize(innerWidth, innerHeight);
+    this.resize(viewW(), viewH());
   }
 
   setSword(infinite) { this.danC.setWeapon(this.makeSword(infinite), 'knife'); if (infinite && this.noam) this.noam.C.setWeapon(this.makeSword(true), 'knife'); }

@@ -9,3 +9,11 @@ export function rng(seed) { // mulberry32 – מפות דטרמיניסטיות
 }
 export const pick = (r, arr) => arr[Math.floor(r() * arr.length)];
 export const $ = (s) => document.querySelector(s);
+
+/** האם מכולת המשחק מסובבת 90° (טלפון נעול בכיוון הלא נכון למצב השניים) */
+export const rotated = () => document.body.classList.contains('rot90');
+/** גודל המסך כפי שהמשחק רואה אותו (אחרי סיבוב) */
+export const viewW = () => (rotated() ? innerHeight : innerWidth);
+export const viewH = () => (rotated() ? innerWidth : innerHeight);
+/** הזזה במסך → הזזה בתוך המכולה המסובבת (סיבוב 90° עם כיוון השעון) */
+export const mapDelta = (dx, dy) => (rotated() ? [dy, -dx] : [dx, dy]);

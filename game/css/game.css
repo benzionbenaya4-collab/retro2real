@@ -216,3 +216,7 @@ body.coop .pad .btn-tool span { font-size: 18px; }
 .tool-hud .cd { width: 34px; height: 5px; background: #000; border-radius: 3px; overflow: hidden; }
 .tool-hud .cd i { display: block; height: 100%; background: #c89a4a; }
 .tool-hud .p2t { color: var(--gold); }
+
+/* טלפון נעול בכיוון הלא נכון למצב השניים: מסובבים את כל מכולת המשחק 90° עם כיוון השעון */
+body.rot90 #stage { inset: auto; top: 0; left: 0; width: 100vh; height: 100vw; transform-origin: 0 0; transform: translate(100vw, 0) rotate(90deg); }
+body.rot90 #rotate { display: none !important; }
