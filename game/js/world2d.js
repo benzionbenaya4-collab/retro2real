@@ -7,6 +7,8 @@ import { hud } from './hud.js';
 import { pixi } from './pixi.js';
 import { input } from './input.js';
 import { VIRUS, pickVirus, virusStats, updateVirus, virusContactDamage, onVirusDead, drawVirus, drawConfused } from './viruses.js';
+import { toolTick, toolHud } from './tools.js';
+import { initHunt, useTool2d, updateHunt, drawHunt, drawStun, drawHuntHud } from './hunt2d.js';
 import { createZones, updateZones, drawZones, zoneArrows } from './zones.js';
 
 const T = 16;
@@ -131,6 +133,7 @@ export class World2D {
       }
     } else { this.spawnBoss(c.arena.boss, (this.W >> 1) * T + 8, 4 * T); }
     createZones(this);
+    initHunt(this, m);
     pixi.reset(true);
     this.swordMul = c.swordMul || 1;
   }
@@ -224,6 +227,8 @@ export class World2D {
 
     this.updateWaves(dt);
     updateZones(this, dt);
+    updateHunt(this, dt);
+    for (const p of this.players) hud.tool(p.id, p.hp > 0 ? toolHud(p) : null); if (!this.noam) hud.tool(2, null);
     if (this.boss && this.boss.onHalf && this.boss.hp <= this.boss.max / 2 && !this.boss.halfDone) { this.boss.halfDone = true; pixi.runOut(); }
     if (this.exitOpen && this.gate && touch(this.gate.x * T + 8, this.gate.y * T + 12, 12)) { this.result = 'win'; audio.sfx('warp'); }
     if (!this.alive().length) { this.result = 'dead'; audio.sfx('kill'); }
@@ -251,6 +256,7 @@ export class World2D {
       if (d.down <= 0 && this.alive().length) { d.hp = Math.ceil(c.dan.hp / 2); d.inv = 2; d.down = undefined; hud.say(d.id === 2 ? 'נועם חזר! 💪' : 'דן חזר!', 2); audio.sfx('heart'); }
       return;
     }
+    toolTick(this, d, inp, dt);
     const sp = c.dan.speed * pixi.speedMul() * (d.atkT < 0.14 ? 0.45 : 1);
     if (pixi.boost > 0 && d.moving && Math.random() < 0.6) this.part(d.x - inp.x * 6, d.y - 4, c.colors.light, 0.3, 10);
     d.moving = Math.hypot(inp.x, inp.y) > 0.1;
@@ -311,6 +317,7 @@ export class World2D {
   updateEnemy(e, dt) {
     const d = this.dan; e.t += dt; e.inv = Math.max(0, e.inv - dt);
     if (e.rise > 0) { e.rise -= dt; return; }
+    if (e.stun > 0) { e.stun -= dt; e.kx *= 0.9; e.ky *= 0.9; return; } // מלכודת
     let vx = 0, vy = 0;
     const tg = e.tgt && !e.tgt.dead && e.tgt.hp > 0 ? e.tgt : (this.nearest(e.x, e.y) || d);
     const dx = tg.x - e.x, dy = tg.y - e.y, L = Math.hypot(dx, dy) || 1;
@@ -402,7 +409,15 @@ export class World2D {
   }
 
   // ---------- ציור ----------
+  useTool(p, key) { return useTool2d(this, p, key); }
+  /** משקפת: זום החוצה (חלק) לשחקן שמשתמש בה */
   draw(ctx, VW, VH, focus = null) {
+    const ps = focus ? [focus] : this.players, want = ps.some((p) => p.zoom > 0) ? 0.6 : 1, k = 'zk' + (focus ? focus.id : 0);
+    this[k] = (this[k] ?? 1) + (want - (this[k] ?? 1)) * 0.12; const z = this[k];
+    if (z > 0.995) return this.drawInner(ctx, VW, VH, focus);
+    ctx.save(); ctx.scale(z, z); this.drawInner(ctx, VW / z, VH / z, focus); ctx.restore();
+  }
+  drawInner(ctx, VW, VH, focus = null) {
     const c = this.cfg, d = this.dan, col = c.colors;
     if (!focus) { this.vw = VW; this.vh = VH; }
     const al = focus ? [focus] : this.alive(), fx0 = al.length ? al.reduce((a, p) => a + p.x, 0) / al.length : d.x, fy0 = al.length ? al.reduce((a, p) => a + p.y, 0) / al.length : d.y;
@@ -431,6 +446,7 @@ export class World2D {
     for (const it of this.items) if (it.t < 9 || Math.floor(it.t * 8) % 2) this.drawHeart(ctx, it.x, it.y - 4);
     for (const k of this.coins) if (!k.taken) this.drawCoin(ctx, k.x, k.y);
     drawZones(ctx, this);
+    drawHunt(ctx, this);
     for (const tp of this.tapes) this.drawTape(ctx, tp);
     // ישויות לפי y
     const list = [...this.enemies.map((e) => ({ y: e.y, f: () => this.drawEnemy(ctx, e) })), ...this.players.map((p) => ({ y: p.y, f: () => this.drawPlayer(ctx, p) }))];
@@ -447,6 +463,7 @@ export class World2D {
     // חצים מחוץ למסך + מפה
     if (pixi.scan > 0) this.drawScanHud(ctx, VW, VH);
     zoneArrows(ctx, this, VW, VH);
+    drawHuntHud(ctx, this, VW, VH, focus);
     if (this.exitOpen && this.gate) this.edgeArrow(ctx, VW, VH, this.gate.x * T + 8, this.gate.y * T + 8, col.light, Math.floor(this.t * 4) % 2 ? 6 : 5);
     if (this.flash > 0) { ctx.fillStyle = col.light; ctx.globalAlpha = this.flash * 3; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
     if (this.result) { ctx.fillStyle = this.result === 'win' ? col.light : col.bg; ctx.globalAlpha = Math.min(1, this.endT / 1.2); ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
@@ -469,6 +486,7 @@ export class World2D {
     if (d.conf > 0) drawConfused(ctx, this, d, S ? S.j.frameH : 24);
   }
   drawEnemy(ctx, e) {
+    if (e.virus && e.stun > 0) drawStun(ctx, this, e, 18);
     if (e.virus) { if (e.inv > 0 && Math.floor(e.inv * 20) % 2) return; drawVirus(ctx, this, e, e.rise > 0 ? 1 - e.rise : 1); return; }
     const S = this.SPR(this.cfg.era, e.type);
     if (e.rise > 0) { // יוצא מה-void
@@ -479,6 +497,7 @@ export class World2D {
     let anim = e.face; if (e.attackAnim > 0) anim = e.vx >= 0 ? 'attack_right' : 'attack_left';
     if (e.type === 'trojan' && e.ai === 1) anim = 'idle';
     if (e.type === 'pixi1') { anim = 'idle'; if (Math.random() < 0.04) { ctx.fillStyle = '#6e5038'; ctx.fillRect(Math.round(e.x - 20 + Math.random() * 40), Math.round(e.y - 60 + Math.random() * 50), 6, 2); } }
+    if (e.stun > 0) drawStun(ctx, this, e, S ? S.j.frameH * (e.scale || 1) : 24);
     drawSpr(ctx, S, anim, e.t, e.x + (e.type === 'trojan' && e.ai === 1 ? (Math.random() - 0.5) * 2 : 0), e.y - (e.type === 'pixi1' ? 6 + Math.sin(e.t * 2) * 3 : 0), blink ? 0.3 : 1, e.scale || 1);
   }
   drawSlash(ctx, f) {

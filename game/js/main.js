@@ -9,6 +9,7 @@ import { WORLDS, makeLevel, load3D, ALL_TAPES } from './worlds.js';
 import { makeMini, TAPES } from './minigames.js';
 import { loadSprite } from './assets.js';
 import { Ending } from './ending.js';
+import { unlockFor } from './tools.js';
 
 const view = $('#view'), ctx = view.getContext('2d'), glc = $('#gl');
 const scr = { title: $('#title'), pause: $('#pause'), card: $('#card'), shelf: $('#shelf') };
@@ -100,6 +101,7 @@ async function enterWorld(id, withCard) {
   level.start(); fit(); syncCanvas();
   state = 'play'; showTouch(true); $('#btn-menu').hidden = false;
   audio.play(W.song, W.eraIdx);
+  unlockFor(id);
   if (W.hello && W.kind !== 'boss') setTimeout(() => state === 'play' && hud.say(W.hello, 4), 700);
 }
 function onResult(r) {
@@ -153,7 +155,7 @@ function openTape(tape, fromShelf = false) {
   mini.tape = tape; mini.era = era; setMode3d(false); startMini();
   const T = TAPES[tape.kind]; mini.el.querySelector('.mini-px').textContent = T.px; mini.el.querySelector('.mini-title').textContent = T.title; mini.el.querySelector('.mini-hint').textContent = T.hint;
   const hint = mini.el.querySelector('.mini-hint'); hint.style.opacity = 1; clearTimeout(mini.hintT); mini.hintT = setTimeout(() => (hint.style.opacity = 0), 3200);
-  $('#btn-pixi').hidden = true; $('#btn-pixi2').hidden = true;
+  $('#btn-pixi').hidden = true; $('#btn-pixi2').hidden = true; hud.tool(1, null); hud.tool(2, null);
   document.body.classList.add('in-mini');
   mini.el.hidden = false; state = 'mini'; $('#btn-menu').hidden = true; hud.say(null); audio.sfx('start'); audio.play(tape.gold ? 'win' : 'title', 0);
 }

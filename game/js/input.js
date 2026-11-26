@@ -3,15 +3,16 @@
 // בטלפון: מסך מפוצל – ג'ויסטיק ו-A משמאל לשחקן 1, ומימין לשחקן 2.
 import { $ } from './util.js';
 
-const mk = () => ({ x: 0, y: 0, a: false, aPressed: false, cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } });
-export const input = { x: 0, y: 0, a: false, aPressed: false, pixiPressed: false, startPressed: false, pausePressed: false, touch: false, coop: false, coopMode: null, mode3d: false, p2: mk(), cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } };
+const mk = () => ({ x: 0, y: 0, a: false, aPressed: false, toolPressed: false, toolSwitch: false, cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } });
+export const input = { x: 0, y: 0, a: false, aPressed: false, toolPressed: false, toolSwitch: false, pixiPressed: false, startPressed: false, pausePressed: false, touch: false, coop: false, coopMode: null, mode3d: false, p2: mk(), cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } };
 const keys = new Set();
 // קודי מקשים → פעולה, לפי מצב
 // חצים = 'al/ar/au/ad': בדו-ממד הולכים, בתלת-ממד מסובבים מצלמה
-const SOLO = { ArrowLeft: 'al', KeyA: 'l', ArrowRight: 'ar', KeyD: 'r', ArrowUp: 'au', KeyW: 'u', ArrowDown: 'ad', KeyS: 'd', Space: 'a', KeyJ: 'a', KeyZ: 'a', KeyK: 'p', KeyP: 'p', KeyX: 'p', KeyQ: 'p', Enter: 'start', Escape: 'pause' };
-// בשניים: מצלמה בתלת-ממד – דן Q/E, נועם , ו-. (או 4/6 במקלדת המספרים)
-const COOP = { KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd', KeyJ: 'a', Space: 'a', KeyK: 'p', KeyP: 'p', KeyQ: 'cl', KeyE: 'cr', Escape: 'pause',
-  ArrowLeft: 'l2', ArrowRight: 'r2', ArrowUp: 'u2', ArrowDown: 'd2', Enter: 'a2', NumpadEnter: 'a2', ShiftRight: 'a2', Comma: 'cl2', Period: 'cr2', Numpad4: 'cl2', Numpad6: 'cr2', Slash: 'p', Numpad0: 'p' };
+const SOLO = { ArrowLeft: 'al', KeyA: 'l', ArrowRight: 'ar', KeyD: 'r', ArrowUp: 'au', KeyW: 'u', ArrowDown: 'ad', KeyS: 'd', Space: 'a', KeyJ: 'a', KeyZ: 'a', KeyK: 'p', KeyP: 'p', KeyX: 'p', KeyQ: 't', KeyE: 'ts', Enter: 'start', Escape: 'pause' };
+// ארגז הציד: Q = להשתמש בכלי, E = להחליף כלי
+// בשניים: דן – כלי Q/E, מצלמה Z/C · נועם – כלי / ו-', מצלמה , ו-. (או 4/6 במקלדת המספרים)
+const COOP = { KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd', KeyJ: 'a', Space: 'a', KeyK: 'p', KeyP: 'p', KeyQ: 't', KeyE: 'ts', KeyZ: 'cl', KeyC: 'cr', Escape: 'pause', Slash: 't2', Quote: 'ts2', Backslash: 'p',
+  ArrowLeft: 'l2', ArrowRight: 'r2', ArrowUp: 'u2', ArrowDown: 'd2', Enter: 'a2', NumpadEnter: 'a2', ShiftRight: 'a2', Comma: 'cl2', Period: 'cr2', Numpad4: 'cl2', Numpad6: 'cr2', Numpad0: 'p' };
 const map = () => (input.coop ? COOP : SOLO);
 addEventListener('keydown', (e) => {
   const k = map()[e.code]; if (!k) return;
@@ -19,6 +20,7 @@ addEventListener('keydown', (e) => {
   e.preventDefault();
   if (!keys.has(k)) {
     if (k === 'a') input.aPressed = true; if (k === 'a2') input.p2.aPressed = true; if (k === 'p') input.pixiPressed = true;
+    if (k === 't') input.toolPressed = true; if (k === 'ts') input.toolSwitch = true; if (k === 't2') input.p2.toolPressed = true; if (k === 'ts2') input.p2.toolSwitch = true;
     if (k === 'start') input.startPressed = true; if (k === 'pause') input.pausePressed = true;
   }
   keys.add(k);
@@ -50,6 +52,13 @@ export function setupTouch() {
   if (matchMedia('(pointer: coarse)').matches) show();
   bindStick($('#stick'), sticks[0]); bindStick($('#stick2'), sticks[1]);
   bindA($('#btn-a'), 0); bindA($('#btn-a2'), 1);
+  // 🎒: לחיצה קצרה = להשתמש בכלי, לחיצה ארוכה = להחליף כלי
+  [$('#btn-tool'), $('#btn-tool2')].forEach((b, i) => {
+    let t0 = 0, timer = 0; const tgt = () => (i ? input.p2 : input);
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); t0 = performance.now(); b.classList.add('on'); clearTimeout(timer); timer = setTimeout(() => { if (t0) { tgt().toolSwitch = true; t0 = 0; b.classList.remove('on'); } }, 450); });
+    const up = () => { clearTimeout(timer); b.classList.remove('on'); if (t0) { tgt().toolPressed = true; t0 = 0; } };
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', () => { clearTimeout(timer); t0 = 0; b.classList.remove('on'); });
+  });
   for (const btnP of [$('#btn-pixi'), $('#btn-pixi2')]) btnP.addEventListener('pointerdown', (e) => { e.preventDefault(); input.pixiPressed = true; btnP.classList.add('on'); setTimeout(() => btnP.classList.remove('on'), 150); });
 }
 const flipped = (el) => input.coopMode === 'table' && !!el.closest('#pad2');
@@ -82,6 +91,7 @@ export function poll() {
 /** אחרי העדכון – מאפס לחיצות חד-פעמיות */
 export function endFrame() {
   input.aPressed = input.pixiPressed = input.startPressed = input.pausePressed = false; input.p2.aPressed = false;
+  input.toolPressed = input.toolSwitch = input.p2.toolPressed = input.p2.toolSwitch = false;
   input.cam.dx = input.cam.dy = 0; input.p2.cam.dx = input.p2.cam.dy = 0;
 }
 

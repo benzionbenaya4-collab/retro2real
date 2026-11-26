@@ -203,3 +203,16 @@ body.in-mini #top, body.in-mini .popup-win { display: none !important; }
 .shelf-btn { margin-top: 2px; }
 
 .end-insert { position: absolute; left: 50%; bottom: max(7%, calc(env(safe-area-inset-bottom) + 24px)); transform: translateX(-50%); z-index: 5; }
+
+/* ארגז הציד 🎒 */
+.pad .btn-tool { position: absolute; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 118px); right: calc(max(18px, env(safe-area-inset-right)) + 0px); width: 56px; height: 56px; border-radius: 14px; border: 2px solid #ffffff70; background: #8a6a2a99; touch-action: none; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; padding: 0; }
+.pad .btn-tool span { font-size: 22px; }
+.pad .btn-tool small { font-size: 9px; font-weight: 700; margin-top: 2px; white-space: nowrap; }
+.pad .btn-tool[hidden] { display: none; }
+body.coop .pad .btn-tool { width: 46px; height: 46px; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 150px); right: calc(max(18px, env(safe-area-inset-right)) + 40px); }
+body.coop .pad .btn-tool span { font-size: 18px; }
+.tool-hud { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 76px); left: max(12px, env(safe-area-inset-left)); display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid #8a6a2a; border-radius: 10px; padding: 3px 8px; font-size: 12px; font-weight: 700; }
+.tool-hud[hidden] { display: none; }
+.tool-hud .cd { width: 34px; height: 5px; background: #000; border-radius: 3px; overflow: hidden; }
+.tool-hud .cd i { display: block; height: 100%; background: #c89a4a; }
+.tool-hud .p2t { color: var(--gold); }

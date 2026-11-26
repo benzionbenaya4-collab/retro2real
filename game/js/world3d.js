@@ -10,6 +10,7 @@ import { pixi } from './pixi.js';
 import { clamp, rng } from './util.js';
 import { input } from './input.js';
 import { VIRUS, pickVirus, CONFUSE_TIME } from './viruses.js';
+import { toolTick, toolHud, TRAP_STUN, TRAP_MAX, ZOOM_TIME } from './tools.js';
 
 const V3 = THREE.Vector3;
 let R = null; // רנדרר יחיד לכל המשחק (הקשר WebGL אחד)
@@ -269,6 +270,8 @@ export class World3D {
     // סמנים
     if (pixi.scan > 0) for (const mk of this.markers) { if (mk.e && (mk.e.dead || !mk.e.pos)) { mk.s.visible = false; continue; } const p = mk.e ? mk.e.pos : mk.p; mk.s.position.set(p.x, (mk.h || 1.2) + Math.sin(this.t * 6) * 0.1, p.z); }
     else if (this.markers.length) { for (const mk of this.markers) this.scene.remove(mk.s); this.markers = []; }
+    this.updateTraps(dt);
+    for (const p of this.players) hud.tool(p.id, p.hp > 0 ? toolHud(p) : null); if (!this.noam) hud.tool(2, null);
     for (const p of this.players) { hud.popup(p.id, this.enemies.some((e) => e.attached === p && !e.dead)); if (p.warn) p.warn.visible = p.conf > 0 && Math.floor(this.t * 4) % 2 === 0; }
     hud.hearts(Math.max(0, d.hp), c.dan.hp); hud.hearts2(this.noam ? Math.max(0, this.noam.hp) : null, c.dan.hp); hud.shards(this.got, this.shards.length);
     if (this.boss && this.boss.hp > 0) hud.bossBar(c.boss.label, this.boss.hp / this.boss.max); else hud.bossBar(null);
@@ -285,6 +288,8 @@ export class World3D {
       d.warn = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.warnTex, depthTest: false })); d.warn.scale.set(0.35, 0.35, 1); d.warn.position.y = 2.15; d.warn.visible = false; C.root.add(d.warn);
     }
     if (d.conf > 0) { d.conf -= dt; inp = Object.assign({}, inp, { x: -inp.x, y: -inp.y }); } // באג: כיוונים הפוכים
+    if (d.hp > 0) toolTick(this, d, inp, dt);
+    if (d.zoom > 0) d.zoom -= dt;
     if (d.hp <= 0) {
       d.down = (d.down ?? 8) - dt; C.anim.update(dt, { speed: 0 }); C.root.visible = Math.floor(this.t * 4) % 2 === 0;
       if (d.down <= 0 && this.alive().length) { d.hp = Math.ceil(c.dan.hp / 2); d.inv = 2; d.down = undefined; C.root.visible = true; hud.say(d.id === 2 ? 'נועם חזר! 💪' : 'דן חזר!', 2); audio.sfx('heart'); }
@@ -337,6 +342,39 @@ export class World3D {
     if (e.hp <= 0) { e.dead = true; this.waveKills++; audio.sfx('kill'); for (const s of e.segs) { this.burst(s.position, '#5fbf3a', 3); this.scene.remove(s); }
       if (e.type === 'spam' && e.gen < 2) for (const sx of [-0.5, 0.5]) { const k = this.spawnVirus('spam', e.pos.clone().add(new V3(sx, 0, 0)), e.gen + 1); k.rise = 0; k.speed *= 1.15; k.kb.set(sx * 8, 0, 0); } }
   }
+  // ---------- ארגז הציד בתלת-ממד ----------
+  useTool(p, key) {
+    if (key === 'trap') {
+      this.traps ||= []; const mine = this.traps.filter((t) => t.owner === p); if (mine.length >= TRAP_MAX) { this.scene.remove(mine[0].m); this.traps.splice(this.traps.indexOf(mine[0]), 1); }
+      const g = new THREE.Group(), jaw = this.Mat({ color: '#8a8794' });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 4, 10), jaw); ring.rotation.x = Math.PI / 2; g.add(ring);
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2, tooth = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.12, 4), jaw); tooth.position.set(Math.cos(a) * 0.26, 0.06, Math.sin(a) * 0.26); g.add(tooth); }
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 8), this.Mat({ color: '#ffcf4a' })); plate.position.y = 0.01; g.add(plate);
+      const f = new V3(Math.sin(p.yaw), 0, Math.cos(p.yaw)); g.position.copy(p.pos).addScaledVector(f, 1.1); g.position.y = 0.02;
+      this.scene.add(g); this.traps.push({ m: g, owner: p }); audio.sfx('swing'); return true;
+    }
+    if (key === 'binoc') { p.zoom = ZOOM_TIME; audio.sfx('scan'); this.showBinoMarks(p); return true; }
+    hud.toast(p.id, '🐾 אין פה עקבות'); audio.sfx('empty'); return false;
+  }
+  updateTraps(dt) {
+    for (const t of this.traps || []) {
+      const hit = [...this.enemies, ...(this.boss && this.boss.hp > 0 ? [this.boss] : [])].find((e) => !e.dead && !(e.rise > 0) && !(e.stun > 0) && !e.attached && Math.hypot(e.pos.x - t.m.position.x, e.pos.z - t.m.position.z) < (e === this.boss ? 1 : 0.6));
+      if (hit) { hit.stun = hit === this.boss ? 1.2 : TRAP_STUN; t.used = true; this.scene.remove(t.m); audio.sfx('hit'); this.burst(t.m.position, '#c8c4d0', 10); }
+    }
+    if (this.traps) this.traps = this.traps.filter((t) => !t.used);
+    // סימוני משקפת
+    for (const mk of this.binMarks || []) { const live = mk.owner.zoom > 0 && !(mk.e && mk.e.dead); mk.s.visible = live && Math.floor(this.t * 4) % 2 === 0 || live; if (!live) { this.scene.remove(mk.s); mk.gone = true; continue; } const p = mk.e ? mk.e.pos : mk.p; mk.s.position.set(p.x, (mk.h || 1.3) + Math.sin(this.t * 6) * 0.08, p.z); }
+    if (this.binMarks) this.binMarks = this.binMarks.filter((m) => !m.gone);
+  }
+  showBinoMarks(p) {
+    this.binMarks ||= []; this.tapeMarkTex ||= canvasTex(16, 16, (x) => { x.fillStyle = '#ffcf4a'; x.fillRect(1, 4, 14, 9); x.fillStyle = '#1b1724'; x.fillRect(4, 7, 3, 3); x.fillRect(9, 7, 3, 3); });
+    const add = (tex, e, pos, h) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true })); s.scale.set(0.45, 0.45, 1); s.renderOrder = 10; this.scene.add(s); this.binMarks.push({ s, e, p: pos, h, owner: p }); };
+    const near = (q) => Math.hypot(q.x - p.pos.x, q.z - p.pos.z) < 16;
+    for (const e of this.enemies) if (near(e.pos)) add(this.markTex, e, null, 1.3);
+    if (this.boss && this.boss.hp > 0 && near(this.boss.pos)) add(this.markTex, this.boss, null, 2.8);
+    for (const t of this.tapes) if (near(t.g.position)) add(this.tapeMarkTex, null, t.g.position, 0.9);
+  }
+
   // ---------- וירוסים בתלת-ממד ----------
   spawnVirus(type, pos, gen = 0) {
     const retro = this.cfg.era === '32'; let m;
@@ -359,6 +397,7 @@ export class World3D {
   }
   updateVirus3(e, dt) {
     e.t += dt; e.inv = Math.max(0, e.inv - dt); if (e.rise > 0) { e.rise -= dt; return; }
+    if (e.stun > 0) { e.stun -= dt; e.segs[0].rotation.z = Math.sin(e.t * 20) * 0.2; return; }
     const m = e.segs[0], t = e.attached && e.attached.hp > 0 ? e.attached : this.nearest(e.pos); if (!t) return;
     const to = new V3(t.pos.x - e.pos.x, 0, t.pos.z - e.pos.z), L = to.length() || 1; to.divideScalar(L);
     if (e.type === 'popup') {
@@ -386,6 +425,7 @@ export class World3D {
   updateWorm(e, dt) {
     if (e.virus) return this.updateVirus3(e, dt);
     const d = this.nearest(e.pos) || this.dan; e.t += dt; e.inv = Math.max(0, e.inv - dt);
+    if (e.stun > 0 && e.rise <= 0) { e.stun -= dt; e.segs[0].rotation.z = Math.sin(e.t * 20) * 0.3; return; } // מלכודת
     if (e.rise > 0) { e.rise -= dt; e.segs.forEach((s) => (s.position.y = 0.3 - e.rise)); return; }
     const to = new V3(d.pos.x - e.pos.x, 0, d.pos.z - e.pos.z), L = to.length() || 1; to.divideScalar(L);
     const side = new V3(-to.z, 0, to.x).multiplyScalar(Math.sin(e.t * 4) * 0.6);
@@ -406,6 +446,7 @@ export class World3D {
   }
   updateBoss(dt) {
     const b = this.boss, d = this.nearest(this.boss.pos) || this.dan, B = this.cfg.boss; if (b.hp <= 0) return;
+    if (b.stun > 0) { b.stun -= dt; b.c.anim.update(dt, { speed: 0 }); return; }
     b.inv = Math.max(0, b.inv - dt); b.boltT -= dt; b.tpT -= dt; b.sumT -= dt;
     const to = new V3(d.pos.x - b.pos.x, 0, d.pos.z - b.pos.z), L = to.length() || 1;
     b.yaw = Math.atan2(to.x, to.z); b.c.root.rotation.y = b.yaw;
@@ -494,7 +535,9 @@ export class World3D {
   /** מצלמה מאחורי הכתף של שחקן (yaw/pitch שלו). roll = 180° לחצי העליון במצב שולחן */
   camFor(d, c, dt, inited = true, roll = false) {
     const cy = d.camYaw ?? d.yaw, s = Math.sin(cy), co = Math.cos(cy), p = d.camPitch ?? 0.3;
-    const nar = c.aspect < 1, D = nar ? 4.8 : 3.9, sh = nar ? -0.3 : -0.7, hz = Math.cos(p) * D;
+    d.zk = (d.zk ?? 0) + ((d.zoom > 0 ? 1 : 0) - (d.zk ?? 0)) * Math.min(1, dt * 5); // משקפת: מתרחקים ומרחיבים
+    const fov = (this.cfg.era === '32' ? 62 : 55) + d.zk * 16; if (Math.abs(c.fov - fov) > 0.05) { c.fov = fov; c.updateProjectionMatrix(); }
+    const nar = c.aspect < 1, D = (nar ? 4.8 : 3.9) + d.zk * 5, sh = nar ? -0.3 : -0.7, hz = Math.cos(p) * D;
     const want = new V3(d.pos.x - s * hz + co * sh, 1.4 + Math.sin(p) * D, d.pos.z - co * hz - s * sh);
     if (!inited) c.position.copy(want);
     c.position.lerp(want, 1 - Math.exp(-14 * dt));

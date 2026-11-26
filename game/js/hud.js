@@ -23,7 +23,7 @@ const heartsHtml = (hp, max, cls = '') => Array.from({ length: max }, (_, i) => 
 
 let last = {};
 export const hud = {
-  show(on) { for (const e of both) e.hud.hidden = !on; if (!on) { this.say(null); this.banner(null); this.bossBar(null); this.boost(0); this.popup(1, false); this.popup(2, false); } },
+  show(on) { for (const e of both) e.hud.hidden = !on; if (!on) { this.say(null); this.banner(null); this.bossBar(null); this.boost(0); this.popup(1, false); this.popup(2, false); this.tool(1, null); this.tool(2, null); } },
   setWorld(name) { for (const e of both) e.name.textContent = name; },
   hearts(hp, max) {
     const k = hp + '/' + max; if (last.h === k) return; last.h = k;
@@ -75,6 +75,26 @@ export const hud = {
       $('#stage').insertBefore(el, $('#touch'));
     }
     el.hidden = !on; if (on) audio.sfx('bolt');
+  },
+  /** ארגז הציד: כלי נבחר + טעינה, בכפתור 🎒 וב-HUD. st = toolHud(p) או null */
+  _tu: {},
+  tool(id, st) {
+    const toasting = performance.now() < (this._tu[id] || 0);
+    const k = 'tool' + id, v = st ? `${st.icon}${st.name}${Math.ceil(st.cd * 10)}${toasting}` : 'none'; if (last[k] === v) return; last[k] = v;
+    const btn = document.getElementById(id === 2 ? 'btn-tool2' : 'btn-tool');
+    if (btn) { btn.hidden = !st; if (st) { btn.querySelector('span').textContent = st.icon; btn.querySelector('small').textContent = st.cd > 0 ? '…' : st.name; btn.style.opacity = st.cd > 0 ? 0.55 : 1; } }
+    const host = id === 2 && document.body.classList.contains('table') ? B.hud : A.hud;
+    let el = host.querySelector('.tool-hud.t' + id);
+    if (!el) { el = document.createElement('div'); el.className = 'tool-hud t' + id; el.innerHTML = '<b></b><span></span><div class="cd"><i></i></div>'; host.appendChild(el); if (id === 2 && host === A.hud) el.style.top = 'calc(max(10px, env(safe-area-inset-top)) + 106px)'; }
+    el.hidden = !st; if (!st) return;
+    el.querySelector('b').textContent = st.icon;
+    if (!toasting) { el.querySelector('span').textContent = (id === 2 ? 'נועם: ' : '') + st.name; el.querySelector('span').className = id === 2 ? 'p2t' : ''; }
+    el.querySelector('.cd i').style.width = (100 * (1 - st.cd)) + '%';
+  },
+  /** הודעה קצרה ליד הכלי */
+  toast(id, text) {
+    const el = document.querySelector('.tool-hud.t' + id + ' span'); if (!el) return;
+    el.textContent = text; this._tu[id] = performance.now() + 900;
   },
   reset() { last = {}; },
 };
