@@ -3,11 +3,12 @@
 // בטלפון: מסך מפוצל – ג'ויסטיק ו-A משמאל לשחקן 1, ומימין לשחקן 2.
 import { $ } from './util.js';
 
-const mk = () => ({ x: 0, y: 0, a: false, aPressed: false });
-export const input = { x: 0, y: 0, a: false, aPressed: false, pixiPressed: false, startPressed: false, pausePressed: false, touch: false, coop: false, p2: mk() };
+const mk = () => ({ x: 0, y: 0, a: false, aPressed: false, cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } });
+export const input = { x: 0, y: 0, a: false, aPressed: false, pixiPressed: false, startPressed: false, pausePressed: false, touch: false, coop: false, mode3d: false, p2: mk(), cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } };
 const keys = new Set();
 // קודי מקשים → פעולה, לפי מצב
-const SOLO = { ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', Space: 'a', KeyJ: 'a', KeyZ: 'a', KeyK: 'p', KeyP: 'p', KeyX: 'p', KeyQ: 'p', Enter: 'start', Escape: 'pause' };
+// חצים = 'al/ar/au/ad': בדו-ממד הולכים, בתלת-ממד מסובבים מצלמה
+const SOLO = { ArrowLeft: 'al', KeyA: 'l', ArrowRight: 'ar', KeyD: 'r', ArrowUp: 'au', KeyW: 'u', ArrowDown: 'ad', KeyS: 'd', Space: 'a', KeyJ: 'a', KeyZ: 'a', KeyK: 'p', KeyP: 'p', KeyX: 'p', KeyQ: 'p', Enter: 'start', Escape: 'pause' };
 const COOP = { KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd', KeyJ: 'a', Space: 'a', KeyK: 'p', KeyP: 'p', KeyQ: 'p', Escape: 'pause',
   ArrowLeft: 'l2', ArrowRight: 'r2', ArrowUp: 'u2', ArrowDown: 'd2', Enter: 'a2', NumpadEnter: 'a2', ShiftRight: 'a2' };
 const map = () => (input.coop ? COOP : SOLO);
@@ -54,18 +55,43 @@ export function setupTouch() {
 export function showTouch(on) { $('#touch').hidden = !(on && input.touch); }
 export function setCoop(on) { input.coop = !!on; keys.clear(); document.body.classList.toggle('coop', input.coop); }
 
-function axis(l, r, u, d, st) {
-  let x = (keys.has(r) ? 1 : 0) - (keys.has(l) ? 1 : 0), y = (keys.has(d) ? 1 : 0) - (keys.has(u) ? 1 : 0);
+const k2 = (a, b) => keys.has(a) || (b && keys.has(b));
+function axis(l, r, u, d, st, alt) {
+  let x = (k2(r, alt && 'ar') ? 1 : 0) - (k2(l, alt && 'al') ? 1 : 0), y = (k2(d, alt && 'ad') ? 1 : 0) - (k2(u, alt && 'au') ? 1 : 0);
   if (x && y) { x *= Math.SQRT1_2; y *= Math.SQRT1_2; }
   if (Math.hypot(st.x, st.y) > 0.18) { x = st.x; y = st.y; }
   return [x, y];
 }
 /** קורא פעם בפריים, לפני העדכון */
 export function poll() {
-  [input.x, input.y] = axis('l', 'r', 'u', 'd', sticks[0]); input.a = keys.has('a') || aTouch[0];
+  const arrowsMove = !input.coop && !input.mode3d;
+  [input.x, input.y] = axis('l', 'r', 'u', 'd', sticks[0], arrowsMove); input.a = keys.has('a') || aTouch[0];
+  input.camKey.x = !input.coop && input.mode3d ? (keys.has('ar') ? 1 : 0) - (keys.has('al') ? 1 : 0) : 0;
+  input.camKey.y = !input.coop && input.mode3d ? (keys.has('ad') ? 1 : 0) - (keys.has('au') ? 1 : 0) : 0;
   const p = input.p2;
   if (input.coop) { [p.x, p.y] = axis('l2', 'r2', 'u2', 'd2', sticks[1]); p.a = keys.has('a2') || aTouch[1]; }
   else { p.x = p.y = 0; p.a = false; }
 }
 /** אחרי העדכון – מאפס לחיצות חד-פעמיות */
-export function endFrame() { input.aPressed = input.pixiPressed = input.startPressed = input.pausePressed = false; input.p2.aPressed = false; }
+export function endFrame() {
+  input.aPressed = input.pixiPressed = input.startPressed = input.pausePressed = false; input.p2.aPressed = false;
+  input.cam.dx = input.cam.dy = 0; input.p2.cam.dx = input.p2.cam.dy = 0;
+}
+
+// ---------- סיבוב מצלמה בתלת-ממד ----------
+// מגע: גרירה בשטח #camzone (החצי הימני, מתחת לכפתורים). עכבר: גרירה על הקנבס, או לחיצה כפולה ל-pointer lock.
+export function setupCamDrag() {
+  const drag = (el, target, k = 1) => {
+    let id = null, lx = 0, ly = 0;
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; id = e.pointerId; lx = e.clientX; ly = e.clientY; try { el.setPointerCapture(id); } catch { /* */ } });
+    el.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; target().dx += (e.clientX - lx) * k; target().dy += (e.clientY - ly) * k; lx = e.clientX; ly = e.clientY; });
+    const up = (e) => { if (e.pointerId === id) id = null; };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  };
+  drag($('#camzone'), () => input.cam);
+  const z2 = $('#camzone2'); if (z2) drag(z2, () => input.p2.cam);
+  const gl = $('#gl'); drag(gl, () => input.cam, 0.8);
+  gl.addEventListener('dblclick', () => { try { gl.requestPointerLock?.(); } catch { /* */ } });
+  addEventListener('mousemove', (e) => { if (document.pointerLockElement === gl) { input.cam.dx += e.movementX * 0.8; input.cam.dy += e.movementY * 0.8; } });
+}
+export function setMode3d(on) { input.mode3d = !!on; document.body.classList.toggle('mode3d', input.mode3d); if (!on && document.pointerLockElement) document.exitPointerLock?.(); }

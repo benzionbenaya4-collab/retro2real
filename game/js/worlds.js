@@ -38,7 +38,7 @@ export const WORLDS = {
   3: {
     kind: '3d', name: 'עולם 3 – 32 ביט', short: 'עולם 3', era: '32-BIT · עולם 3', eraIdx: 2, song: 'polygon', next: 4,
     intro: 'העולם קיבל עומק! פוליגונים, טקסטורות מפוקסלות ומצלמה מאחורי הכתף. התולעים כבר לא שטוחות. אסוף 3 שברי קוד ופתח את הפורטל אל ההאקר.',
-    hello: 'תלת־ממד! ימינה/שמאלה מסובב את דן, למעלה הולך קדימה. כמו פעם 😎',
+    hello: matchMedia('(pointer: coarse)').matches ? 'תלת־ממד! הג׳ויסטיק מזיז את דן, וגרירה בצד ימין של המסך מסובבת את המצלמה 😎' : 'תלת־ממד! WASD להליכה, וחצים או גרירה בעכבר מסובבים את המצלמה 😎',
     cfg: {
       key: 'w3', coins: 1, tapes: [{ id: 'w3-maze', kind: 'maze' }], era: '32', mode: 'world', low: 200, seed: 32, bounds: 16, shards: 3,
       waves: [{ n: 3, need: 0, outage: true }, { n: 4, need: 2 }],

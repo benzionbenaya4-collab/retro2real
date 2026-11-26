@@ -1,6 +1,6 @@
 // מרטרו לרגיל – לולאה ראשית, מסך פתיחה, כרטיסי עולם, השהיה, שמירה.
 import { $ } from './util.js';
-import { input, poll, endFrame, setupTouch, showTouch, setCoop } from './input.js';
+import { input, poll, endFrame, setupTouch, showTouch, setCoop, setupCamDrag, setMode3d } from './input.js';
 import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
@@ -23,7 +23,7 @@ function fit() {
 }
 addEventListener('resize', fit);
 
-function syncCanvas() { const is3d = !!level?.is3d; glc.hidden = !is3d; view.hidden = is3d; }
+function syncCanvas() { const is3d = !!level?.is3d; glc.hidden = !is3d; view.hidden = is3d; setMode3d(is3d && state !== 'title'); }
 function screen(name) { for (const [k, el] of Object.entries(scr)) el.hidden = k !== name; }
 
 // ---------- מסך פתיחה ----------
@@ -38,7 +38,7 @@ soundBtn.onclick = () => { audio.unlock(); audio.setOn(!audio.on); save = store.
 
 function showTitle() {
   state = 'title'; screen('title'); hud.show(false); showTouch(false); $('#btn-menu').hidden = true;
-  glc.hidden = true; view.hidden = false; level?.dispose?.(); level = null;
+  glc.hidden = true; view.hidden = false; setMode3d(false); level?.dispose?.(); level = null;
   const cont = save.world > 1 && WORLDS[save.world];
   $('#continue-box').hidden = !cont; $('#press-start').hidden = !!cont;
   if (cont) $('#btn-continue span').textContent = WORLDS[save.world].short;
@@ -116,7 +116,7 @@ function openTape(tape) {
   const era = level?.cfg?.era === '8bit' ? '8bit' : '16bit';
   loadSprite(era, 'dan').catch(() => {}); loadSprite('16bit', 'pixi').catch(() => {});
   const found = new Set(store.load().tapes || []); if (!found.has(tape.id)) { found.add(tape.id); save = store.save({ tapes: [...found] }); }
-  mini.tape = tape; mini.era = era; startMini();
+  mini.tape = tape; mini.era = era; setMode3d(false); startMini();
   const T = TAPES[tape.kind]; mini.el.querySelector('.mini-px').textContent = T.px; mini.el.querySelector('.mini-title').textContent = T.title; mini.el.querySelector('.mini-hint').textContent = T.hint;
   const hint = mini.el.querySelector('.mini-hint'); hint.style.opacity = 1; clearTimeout(mini.hintT); mini.hintT = setTimeout(() => (hint.style.opacity = 0), 3200);
   $('#btn-pixi').hidden = true;
@@ -131,7 +131,7 @@ function endMini(r) {
   mini.end.hidden = false; audio.sfx(r === 'win' ? 'refill' : 'empty'); setTimeout(() => $(r === 'win' ? '#mini-back' : '#mini-again').focus(), 30);
 }
 function closeMini() {
-  mini.el.hidden = true; mini.game = null; state = 'play'; $('#btn-menu').hidden = false; $('#btn-pixi').hidden = false;
+  mini.el.hidden = true; mini.game = null; state = 'play'; syncCanvas(); $('#btn-menu').hidden = false; $('#btn-pixi').hidden = false;
   const W = WORLDS[worldId]; if (W && W.song) audio.play(W.song, W.eraIdx);
 }
 $('#mini-exit').onclick = closeMini; $('#mini-back').onclick = closeMini; $('#mini-again').onclick = startMini;
@@ -181,7 +181,7 @@ function drawAttract(t) {
 }
 
 // ---------- אתחול ----------
-setupTouch(); fit(); showTitle();
+setupTouch(); setupCamDrag(); fit(); showTitle();
 requestAnimationFrame(frame);
 (async () => {
   try { await Promise.race([document.fonts?.ready, new Promise((r) => setTimeout(r, 2500))]); } catch { /* */ }

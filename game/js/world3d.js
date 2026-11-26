@@ -282,18 +282,27 @@ export class World3D {
       if (d.down <= 0 && this.alive().length) { d.hp = Math.ceil(c.dan.hp / 2); d.inv = 2; d.down = undefined; C.root.visible = true; hud.say(d.id === 2 ? 'נועם חזר! 💪' : 'דן חזר!', 2); audio.sfx('heart'); }
       return;
     }
-    d.yaw -= inp.x * 2.6 * dt;
+    // מצלמה: גרירה/חצים מסובבים (yaw), ו-pitch מוגבל
+    const ci = inp.cam || { dx: 0, dy: 0 }, ck = inp.camKey || { x: 0, y: 0 };
+    d.camYaw = (d.camYaw ?? d.yaw) - ci.dx * 0.0065 - ck.x * 2.4 * dt;
+    d.camPitch = clamp((d.camPitch ?? 0.3) + ci.dy * 0.004 + ck.y * 1.2 * dt, 0.06, 0.9);
+    // תזוזה ביחס למצלמה: ימינה = ימינה, קדימה = קדימה. דן מסתובב לכיוון ההליכה
+    const cy = this.camYawFor(d), f = new V3(Math.sin(cy), 0, Math.cos(cy)), rgt = new V3(-Math.cos(cy), 0, Math.sin(cy));
+    const want = f.multiplyScalar(-inp.y).add(rgt.multiplyScalar(inp.x)), mag = Math.min(1, want.length());
+    const yaw0 = d.yaw;
+    if (mag > 0.12) { const ty = Math.atan2(want.x, want.z); let da = ty - d.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); d.yaw += da * Math.min(1, dt * 12); }
     const fwd = new V3(Math.sin(d.yaw), 0, Math.cos(d.yaw));
-    const mv = -inp.y * c.dan.speed * pixi.speedMul() * (d.atkT < 0.25 ? 0.4 : 1);
+    const mv = (mag > 0.12 ? mag : 0) * c.dan.speed * pixi.speedMul() * (d.atkT < 0.25 ? 0.4 : 1);
+    const dir = mag > 0.12 ? want.normalize() : fwd;
     if (pixi.boost > 0 && Math.abs(mv) > 0.5 && Math.random() < 0.3) this.burst(d.pos, '#ffcf4a', 1, 1.5);
     const old = d.pos.clone();
-    d.pos.addScaledVector(fwd, mv * dt).addScaledVector(d.kb, dt); d.kb.multiplyScalar(Math.exp(-8 * dt));
+    d.pos.addScaledVector(dir, mv * dt).addScaledVector(d.kb, dt); d.kb.multiplyScalar(Math.exp(-8 * dt));
     this.collide(d.pos, 0.4);
     const L = Math.hypot(d.pos.x, d.pos.z); if (L > B) d.pos.multiplyScalar(B / L);
     const o = this.players.find((q) => q !== d && q.hp > 0); // בשניים: לא מתרחקים מדי
     if (o && d.pos.distanceTo(o.pos) > 11 && d.pos.distanceTo(o.pos) > old.distanceTo(o.pos)) d.pos.copy(old);
     C.root.position.copy(d.pos); C.root.rotation.y = d.yaw;
-    C.anim.update(dt, { speed: Math.abs(mv) / c.dan.speed * 0.9, yawRate: -inp.x * 2.6 });
+    C.anim.update(dt, { speed: Math.abs(mv) / c.dan.speed * 0.9, yawRate: (d.yaw - yaw0) / Math.max(dt, 1e-3) });
     C.root.visible = !(d.inv > 0 && Math.floor(d.inv * 14) % 2);
     // קלטת
     const tape = this.onTape ? this.tapes.find((t) => Math.hypot(t.g.position.x - d.pos.x, t.g.position.z - d.pos.z) < 1.1) : null;
@@ -415,12 +424,12 @@ export class World3D {
   }
   camFollow(dt) {
     if (this.noam) return this.camCoop(dt);
-    const d = this.dan, c = this.cam, s = Math.sin(d.yaw), co = Math.cos(d.yaw);
-    const nar = c.aspect < 1, D = nar ? 4.8 : 3.7, sh = nar ? -0.3 : -0.8;
-    const want = new V3(d.pos.x - s * D + co * sh, nar ? 2.9 : 2.45, d.pos.z - co * D - s * sh);
+    const d = this.dan, c = this.cam, cy = d.camYaw ?? d.yaw, s = Math.sin(cy), co = Math.cos(cy), p = d.camPitch ?? 0.3;
+    const nar = c.aspect < 1, D = nar ? 4.8 : 3.9, sh = nar ? -0.3 : -0.7, hz = Math.cos(p) * D;
+    const want = new V3(d.pos.x - s * hz + co * sh, 1.4 + Math.sin(p) * D, d.pos.z - co * hz - s * sh);
     if (!this.camInit) { c.position.copy(want); this.camInit = true; }
-    c.position.lerp(want, 1 - Math.exp(-8 * dt));
-    c.lookAt(d.pos.x + s * 4 + co * -0.4, 1.3, d.pos.z + co * 4 - s * -0.4);
+    c.position.lerp(want, 1 - Math.exp(-14 * dt));
+    c.lookAt(d.pos.x + s * 2.5 + co * -0.3, 1.3, d.pos.z + co * 2.5 - s * -0.3);
     // פיקסי ליד הכתף
     const pp = new V3(d.pos.x + co * 0.7 - s * 0.3, 2.05 + Math.sin(this.t * 4) * 0.08, d.pos.z - s * 0.7 - co * 0.3);
     this.pixiS.position.lerp(pp, 1 - Math.exp(-6 * dt));
@@ -428,6 +437,8 @@ export class World3D {
     if (this.pixiL) { this.pixiL.position.copy(this.pixiS.position); this.pixiL.intensity = pixi.out ? 0.3 : 3; }
     if (this.sun.castShadow) { this.sun.position.set(d.pos.x + 8, 14, d.pos.z + 6); this.sun.target.position.copy(d.pos); this.sun.target.updateMatrixWorld(); }
   }
+  /** כיוון המצלמה שלפיו זזים: בשניים עם מצלמה משותפת – קבוע (מבט ל-+Z) */
+  camYawFor(d) { return this.noam ? 0 : (d.camYaw ?? d.yaw); }
   /** שניים: מצלמה גבוהה בכיוון קבוע, מאחורי נקודת האמצע, מתרחקת כשהם מתרחקים */
   camCoop(dt) {
     const al = this.alive().length ? this.alive() : this.players, c = this.cam;

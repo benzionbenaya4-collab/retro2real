@@ -121,3 +121,8 @@ body.coop #btn-pixi { right: auto; left: 50%; transform: translateX(-50%); botto
   body.coop #shards { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 44px); right: max(12px, env(safe-area-inset-right)); }
 }
 body.coop.touch #bubble { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 250px); }
+
+/* גרירת מצלמה בתלת-ממד (מגע): החצי הימני של המסך, מתחת לכפתורים */
+#camzone, #camzone2 { display: none; position: fixed; top: 0; bottom: 0; touch-action: none; }
+body.mode3d #camzone { display: block; left: 50%; right: 0; }
+body.mode3d.coop #camzone, body.mode3d.coop #camzone2 { display: none; }
