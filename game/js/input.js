@@ -4,13 +4,14 @@
 import { $ } from './util.js';
 
 const mk = () => ({ x: 0, y: 0, a: false, aPressed: false, cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } });
-export const input = { x: 0, y: 0, a: false, aPressed: false, pixiPressed: false, startPressed: false, pausePressed: false, touch: false, coop: false, mode3d: false, p2: mk(), cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } };
+export const input = { x: 0, y: 0, a: false, aPressed: false, pixiPressed: false, startPressed: false, pausePressed: false, touch: false, coop: false, coopMode: null, mode3d: false, p2: mk(), cam: { dx: 0, dy: 0 }, camKey: { x: 0, y: 0 } };
 const keys = new Set();
 // קודי מקשים → פעולה, לפי מצב
 // חצים = 'al/ar/au/ad': בדו-ממד הולכים, בתלת-ממד מסובבים מצלמה
 const SOLO = { ArrowLeft: 'al', KeyA: 'l', ArrowRight: 'ar', KeyD: 'r', ArrowUp: 'au', KeyW: 'u', ArrowDown: 'ad', KeyS: 'd', Space: 'a', KeyJ: 'a', KeyZ: 'a', KeyK: 'p', KeyP: 'p', KeyX: 'p', KeyQ: 'p', Enter: 'start', Escape: 'pause' };
-const COOP = { KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd', KeyJ: 'a', Space: 'a', KeyK: 'p', KeyP: 'p', KeyQ: 'p', Escape: 'pause',
-  ArrowLeft: 'l2', ArrowRight: 'r2', ArrowUp: 'u2', ArrowDown: 'd2', Enter: 'a2', NumpadEnter: 'a2', ShiftRight: 'a2' };
+// בשניים: מצלמה בתלת-ממד – דן Q/E, נועם , ו-. (או 4/6 במקלדת המספרים)
+const COOP = { KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd', KeyJ: 'a', Space: 'a', KeyK: 'p', KeyP: 'p', KeyQ: 'cl', KeyE: 'cr', Escape: 'pause',
+  ArrowLeft: 'l2', ArrowRight: 'r2', ArrowUp: 'u2', ArrowDown: 'd2', Enter: 'a2', NumpadEnter: 'a2', ShiftRight: 'a2', Comma: 'cl2', Period: 'cr2', Numpad4: 'cl2', Numpad6: 'cr2', Slash: 'p', Numpad0: 'p' };
 const map = () => (input.coop ? COOP : SOLO);
 addEventListener('keydown', (e) => {
   const k = map()[e.code]; if (!k) return;
@@ -31,7 +32,7 @@ function bindStick(el, st) {
   const move = (e) => {
     const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R = r.width / 2;
     let dx = (e.clientX - cx) / R, dy = (e.clientY - cy) / R; const m = Math.hypot(dx, dy); if (m > 1) { dx /= m; dy /= m; }
-    st.x = dx; st.y = dy; knob.style.transform = `translate(${dx * R * 0.6}px, ${dy * R * 0.6}px)`;
+    const f = flipped(el) ? -1 : 1; st.x = dx * f; st.y = dy * f; // משטח מסובב 180° (מצב שולחן) knob.style.transform = `translate(${dx * R * 0.6}px, ${dy * R * 0.6}px)`;
   };
   el.addEventListener('pointerdown', (e) => { st.id = e.pointerId; el.setPointerCapture(e.pointerId); move(e); });
   el.addEventListener('pointermove', (e) => { if (e.pointerId === st.id) move(e); });
@@ -49,11 +50,15 @@ export function setupTouch() {
   if (matchMedia('(pointer: coarse)').matches) show();
   bindStick($('#stick'), sticks[0]); bindStick($('#stick2'), sticks[1]);
   bindA($('#btn-a'), 0); bindA($('#btn-a2'), 1);
-  const btnP = $('#btn-pixi');
-  btnP.addEventListener('pointerdown', (e) => { e.preventDefault(); input.pixiPressed = true; btnP.classList.add('on'); setTimeout(() => btnP.classList.remove('on'), 150); });
+  for (const btnP of [$('#btn-pixi'), $('#btn-pixi2')]) btnP.addEventListener('pointerdown', (e) => { e.preventDefault(); input.pixiPressed = true; btnP.classList.add('on'); setTimeout(() => btnP.classList.remove('on'), 150); });
 }
+const flipped = (el) => input.coopMode === 'table' && !!el.closest('#pad2');
 export function showTouch(on) { $('#touch').hidden = !(on && input.touch); }
-export function setCoop(on) { input.coop = !!on; keys.clear(); document.body.classList.toggle('coop', input.coop); }
+/** mode: null (לבד) | 'side' (אחד ליד השני) | 'table' (אחד מול השני) */
+export function setCoop(mode) {
+  input.coopMode = mode || null; input.coop = !!mode; keys.clear();
+  const b = document.body.classList; b.toggle('coop', input.coop); b.toggle('side', mode === 'side'); b.toggle('table', mode === 'table');
+}
 
 const k2 = (a, b) => keys.has(a) || (b && keys.has(b));
 function axis(l, r, u, d, st, alt) {
@@ -69,8 +74,10 @@ export function poll() {
   input.camKey.x = !input.coop && input.mode3d ? (keys.has('ar') ? 1 : 0) - (keys.has('al') ? 1 : 0) : 0;
   input.camKey.y = !input.coop && input.mode3d ? (keys.has('ad') ? 1 : 0) - (keys.has('au') ? 1 : 0) : 0;
   const p = input.p2;
-  if (input.coop) { [p.x, p.y] = axis('l2', 'r2', 'u2', 'd2', sticks[1]); p.a = keys.has('a2') || aTouch[1]; }
-  else { p.x = p.y = 0; p.a = false; }
+  if (input.coop) {
+    [p.x, p.y] = axis('l2', 'r2', 'u2', 'd2', sticks[1]); p.a = keys.has('a2') || aTouch[1];
+    input.camKey.x = (keys.has('cr') ? 1 : 0) - (keys.has('cl') ? 1 : 0); p.camKey.x = (keys.has('cr2') ? 1 : 0) - (keys.has('cl2') ? 1 : 0);
+  } else { p.x = p.y = 0; p.a = false; p.camKey.x = 0; }
 }
 /** אחרי העדכון – מאפס לחיצות חד-פעמיות */
 export function endFrame() {
@@ -84,7 +91,7 @@ export function setupCamDrag() {
   const drag = (el, target, k = 1) => {
     let id = null, lx = 0, ly = 0;
     el.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; id = e.pointerId; lx = e.clientX; ly = e.clientY; try { el.setPointerCapture(id); } catch { /* */ } });
-    el.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; target().dx += (e.clientX - lx) * k; target().dy += (e.clientY - ly) * k; lx = e.clientX; ly = e.clientY; });
+    el.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; const f = flipped(el) ? -k : k; target().dx += (e.clientX - lx) * f; target().dy += (e.clientY - ly) * f; lx = e.clientX; ly = e.clientY; });
     const up = (e) => { if (e.pointerId === id) id = null; };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   };

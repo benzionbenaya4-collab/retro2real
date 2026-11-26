@@ -29,7 +29,9 @@ export class BossLevel {
     }
     return null;
   }
-  draw(ctx, w, h) { this.cur.draw?.(ctx, w, h); }
+  draw(ctx, w, h, focus) { this.cur.draw?.(ctx, w, h, focus); }
+  get dan() { return this.cur?.dan; }
+  get noam() { return this.cur?.noam; }
   render() { this.cur.render?.(); }
   resize(w, h) { this.cur.resize?.(w, h); }
   dispose() { this.cur.dispose?.(); }

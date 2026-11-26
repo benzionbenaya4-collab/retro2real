@@ -7,7 +7,7 @@
   "start_url": "./game/",
   "scope": "./",
   "display": "fullscreen",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#0c0a12",
   "theme_color": "#0c0a12",
   "icons": [

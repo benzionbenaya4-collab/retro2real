@@ -30,10 +30,35 @@ function screen(name) { for (const [k, el] of Object.entries(scr)) el.hidden = k
 const soundBtn = $('#btn-sound');
 const syncSound = () => (soundBtn.textContent = audio.on ? '🔊' : '🔇');
 // שחקן שני (נועם) – על אותו מכשיר
-const coopBtn = $('#btn-coop');
-const syncCoop = () => { coopBtn.setAttribute('aria-pressed', String(input.coop)); coopBtn.querySelector('b').textContent = input.coop ? 'נועם מצטרף!' : 'כבוי'; };
-coopBtn.onclick = () => { audio.unlock(); setCoop(!input.coop); save = store.save({ coop: input.coop }); syncCoop(); audio.sfx(input.coop ? 'heart' : 'empty'); };
-setCoop(!!save.coop); syncCoop();
+// שני מצבים: 'side' – אחד ליד השני (טלפון לרוחב), 'table' – אחד מול השני (לאורך, על השולחן)
+const modeBtns = { side: $('#btn-side'), table: $('#btn-table') };
+const syncCoop = () => { for (const [m, b] of Object.entries(modeBtns)) b.setAttribute('aria-pressed', String(input.coopMode === m)); };
+for (const [m, b] of Object.entries(modeBtns)) b.onclick = () => {
+  audio.unlock(); const next = input.coopMode === m ? null : m;
+  setCoop(next); save = store.save({ coop: next }); syncCoop(); audio.sfx(next ? 'heart' : 'empty');
+  if (next) { hud.reset(); lockOrientation(next); }
+};
+setCoop(save.coop === true ? 'side' : save.coop || null); syncCoop();
+// כיוון מסך: מבקשים נעילה כשאפשר (בדרך כלל רק במסך מלא), ואם הכיוון לא נכון – הודעה
+function lockOrientation(mode) {
+  if (!input.touch) return;
+  const want = mode === 'side' ? 'landscape' : 'portrait';
+  const lock = () => screen.orientation?.lock?.(want).catch(() => {});
+  try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().then(lock, lock); else lock(); } catch { /* */ }
+}
+const rotateEl = $('#rotate');
+function checkOrientation() {
+  const m = input.coopMode, playing = ['play', 'pause', 'mini', 'loading', 'result'].includes(state);
+  let bad = false;
+  if (m && input.touch && playing) bad = m === 'side' ? innerWidth < innerHeight : innerWidth > innerHeight;
+  if (rotateEl.hidden === !bad) return bad;
+  rotateEl.hidden = !bad;
+  if (bad) {
+    rotateEl.querySelector('p').textContent = m === 'side' ? 'סובבו את הטלפון לרוחב' : 'סובבו את הטלפון לאורך';
+    rotateEl.querySelector('small').textContent = m === 'side' ? 'דן משמאל, נועם מימין' : 'והניחו אותו על השולחן: דן למטה, נועם למעלה';
+  }
+  return bad;
+}
 soundBtn.onclick = () => { audio.unlock(); audio.setOn(!audio.on); save = store.save({ sound: audio.on }); syncSound(); }; syncSound();
 
 function showTitle() {
@@ -153,7 +178,9 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   poll();
+  const rotBad = checkOrientation();
   if (state === 'title' && (input.startPressed || input.aPressed) && !$('#press-start').hidden) pressStart();
+  else if (rotBad) { /* מחכים לסיבוב הטלפון */ }
   else if (state === 'play' && level) {
     if (input.pausePressed || input.startPressed) pause(true);
     else {
@@ -167,10 +194,17 @@ function frame(now) {
     if (mini.game) mini.game.draw(mctx, mini.W, mini.H);
   }
   if (state === 'mini') { /* המסך של הקלטת מכסה הכול */ }
-  else if (level && (state === 'play' || state === 'result' || state === 'pause')) { if (level.is3d) level.render(); else level.draw(ctx, VW, VH); }
+  else if (level && (state === 'play' || state === 'result' || state === 'pause')) { if (level.is3d) level.render(); else if (input.coopMode === 'table' && level.noam) drawTable2D(); else level.draw(ctx, VW, VH); }
   else drawAttract(now / 1000);
   audio.tick(); endFrame();
   requestAnimationFrame(frame);
+}
+// אחד מול השני בדו-ממד: חצי תחתון לדן, חצי עליון לנועם מסובב 180°, כל אחד עם מצלמה משלו
+function drawTable2D() {
+  const h = Math.floor(VH / 2), L = level;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, h, VW, VH - h); ctx.clip(); ctx.translate(0, h); level.draw(ctx, VW, VH - h, L.dan); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, h); ctx.clip(); ctx.translate(VW, h); ctx.rotate(Math.PI); level.draw(ctx, VW, h, L.noam || L.dan); ctx.restore();
+  ctx.fillStyle = '#000'; ctx.fillRect(0, h - 1, VW, 2);
 }
 // רקע מסך פתיחה: גשם קוד ירוק עדין
 function drawAttract(t) {

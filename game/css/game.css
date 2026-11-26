@@ -18,27 +18,27 @@ button { font: inherit; color: inherit; }
 /* HUD */
 #hud { position: absolute; inset: 0; pointer-events: none; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); }
 .hud-row { display: flex; gap: 14px; align-items: center; }
-#hearts { display: flex; gap: 3px; font-size: 20px; line-height: 1; filter: drop-shadow(0 2px 0 #000); }
-#hearts .h { color: var(--glitch); }
-#hearts .h.off { color: #3a2f45; }
-#shards { font-size: 11px; color: var(--phos); text-shadow: 0 2px 0 #000; }
-#world-name { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--fg); background: var(--panel); border-radius: 8px; padding: 2px 10px; white-space: nowrap; }
-@media (max-width: 520px) { #world-name { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 150px); display: none; } }
-#tokens { position: absolute; top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 5px 8px; }
-#tokens .tk-label { font-size: 12px; font-weight: 700; color: var(--pixi); }
-#tokens .tk-bar { width: 72px; height: 8px; background: #000; border-radius: 4px; overflow: hidden; }
-#tokens .tk-bar i { display: block; height: 100%; width: 100%; background: var(--pixi); transition: width .25s; }
-#tokens .tk-num { font-size: 9px; min-width: 3ch; }
-#tokens.empty { border-color: var(--glitch); animation: shake .4s 2; }
-#tokens.empty .tk-label, #tokens.empty .tk-num { color: var(--glitch); }
+.hearts { display: flex; gap: 3px; font-size: 20px; line-height: 1; filter: drop-shadow(0 2px 0 #000); }
+.hearts .h { color: var(--glitch); }
+.hearts .h.off { color: #3a2f45; }
+.shards { font-size: 11px; color: var(--phos); text-shadow: 0 2px 0 #000; }
+.world-name { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--fg); background: var(--panel); border-radius: 8px; padding: 2px 10px; white-space: nowrap; }
+@media (max-width: 520px) { .world-name { top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 150px); display: none; } }
+.tokens { position: absolute; top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 5px 8px; }
+.tokens .tk-label { font-size: 12px; font-weight: 700; color: var(--pixi); }
+.tokens .tk-bar { width: 72px; height: 8px; background: #000; border-radius: 4px; overflow: hidden; }
+.tokens .tk-bar i { display: block; height: 100%; width: 100%; background: var(--pixi); transition: width .25s; }
+.tokens .tk-num { font-size: 9px; min-width: 3ch; }
+.tokens.empty { border-color: var(--glitch); animation: shake .4s 2; }
+.tokens.empty .tk-label, .tokens.empty .tk-num { color: var(--glitch); }
 @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-#boost { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 38px); left: calc(max(12px, env(safe-area-inset-left)) + 46px); display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--gold); border-radius: 10px; padding: 4px 8px; }
-#boost span { font-size: 13px; }
-#boost .bt { width: 72px; height: 8px; background: #000; border-radius: 4px; overflow: hidden; }
-#boost .bt i { display: block; height: 100%; width: 100%; background: var(--gold); }
-#boss-bar { position: absolute; top: 46px; left: 50%; transform: translateX(-50%); width: min(60vw, 360px); text-align: center; font-size: 12px; font-weight: 700; text-shadow: 0 1px 0 #000; }
-#boss-bar .bb { height: 8px; background: #000; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-top: 3px; }
-#boss-bar .bb i { display: block; height: 100%; width: 100%; background: var(--glitch); }
+.boost { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 38px); left: calc(max(12px, env(safe-area-inset-left)) + 46px); display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--gold); border-radius: 10px; padding: 4px 8px; }
+.boost span { font-size: 13px; }
+.boost .bt { width: 72px; height: 8px; background: #000; border-radius: 4px; overflow: hidden; }
+.boost .bt i { display: block; height: 100%; width: 100%; background: var(--gold); }
+.boss-bar { position: absolute; top: 46px; left: 50%; transform: translateX(-50%); width: min(60vw, 360px); text-align: center; font-size: 12px; font-weight: 700; text-shadow: 0 1px 0 #000; }
+.boss-bar .bb { height: 8px; background: #000; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+.boss-bar .bb i { display: block; height: 100%; width: 100%; background: var(--glitch); }
 
 /* פיקסי מדבר */
 #bubble { position: absolute; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 200px); left: 50%; transform: translateX(-50%); width: min(92vw, 460px); display: flex; gap: 10px; align-items: center; background: #0b1a22ee; border: 2px solid var(--pixi); border-radius: 14px; padding: 8px 12px; pointer-events: none; animation: pop .18s ease-out; }
@@ -50,13 +50,6 @@ button { font: inherit; color: inherit; }
 #banner small { display: block; font-size: .45em; font-weight: 400; color: var(--muted); margin-top: 6px; }
 
 /* מגע */
-#touch { position: absolute; inset: auto 0 0 0; height: 0; }
-#stick { position: absolute; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 10px); left: max(18px, env(safe-area-inset-left)); width: 128px; height: 128px; border-radius: 50%; background: #ffffff14; border: 2px solid #ffffff30; touch-action: none; }
-#stick i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: #ffffff40; border: 2px solid #ffffff70; }
-#btn-a, #btn-pixi { position: absolute; border-radius: 50%; border: 2px solid #ffffff70; touch-action: none; font-weight: 900; }
-#btn-a { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 24px); right: max(18px, env(safe-area-inset-right)); width: 84px; height: 84px; background: #ff3d6e88; font-family: var(--f-pixel); font-size: 22px; }
-#btn-pixi { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 118px); right: calc(max(18px, env(safe-area-inset-right)) + 70px); width: 64px; height: 64px; background: #6fe3ff66; font-size: 13px; }
-#btn-a.on, #btn-pixi.on { filter: brightness(1.6); }
 #btn-menu { position: absolute; top: max(48px, calc(env(safe-area-inset-top) + 40px)); left: max(12px, env(safe-area-inset-left)); width: 36px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); font-size: 11px; }
 
 /* מסכים */
@@ -99,30 +92,78 @@ button { font: inherit; color: inherit; }
 /* שחקן שני (coop) */
 .p2only { display: none; }
 body.coop .p2only { display: flex; }
-body.coop #stick2 { display: block; }
-#hearts2 { gap: 3px; font-size: 16px; line-height: 1; filter: drop-shadow(0 2px 0 #000); align-items: center; }
-#hearts2::before { content: "נועם"; font-size: 11px; font-weight: 700; color: var(--gold); margin-inline-end: 4px; }
-#hearts2 .h { color: var(--gold); }
-#hearts2 .h.off { color: #3a2f45; }
+.hearts2 { gap: 3px; font-size: 16px; line-height: 1; filter: drop-shadow(0 2px 0 #000); align-items: center; }
+.hearts2::before { content: "נועם"; font-size: 11px; font-weight: 700; color: var(--gold); margin-inline-end: 4px; }
+.hearts2 .h { color: var(--gold); }
+.hearts2 .h.off { color: #3a2f45; }
 .coop-btn { background: #ffffff0a; border: 2px solid var(--line); border-radius: 12px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
 .coop-btn[aria-pressed="true"] { border-color: var(--gold); background: #ffcf4a22; }
 .coop-btn b { color: var(--gold); }
-#stick2 { position: absolute; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 10px); right: max(18px, env(safe-area-inset-right)); width: 128px; height: 128px; border-radius: 50%; background: #ffcf4a14; border: 2px solid #ffcf4a40; touch-action: none; }
-#stick2 i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: #ffcf4a40; border: 2px solid #ffcf4a80; }
-#btn-a2 { position: absolute; border-radius: 50%; border: 2px solid #ffffff70; touch-action: none; font-weight: 900; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 150px); right: calc(max(18px, env(safe-area-inset-right)) + 70px); width: 72px; height: 72px; background: #ffcf4a88; font-family: var(--f-pixel); font-size: 20px; justify-content: center; align-items: center; }
-#btn-a2.on { filter: brightness(1.6); }
 /* במסך מפוצל: A של שחקן 1 עובר לצד שמאל, ופיקסי למרכז */
-body.coop #btn-a { right: auto; left: calc(max(18px, env(safe-area-inset-left)) + 70px); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 150px); width: 72px; height: 72px; }
-body.coop #btn-pixi { right: auto; left: 50%; transform: translateX(-50%); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 20px); }
 @media (max-width: 600px) {
   body.coop .hud-row { flex-direction: column; align-items: flex-start; gap: 4px; }
-  body.coop #hearts { font-size: 15px; }
-  body.coop #hearts2 { font-size: 13px; }
-  body.coop #shards { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 44px); right: max(12px, env(safe-area-inset-right)); }
+  body.coop .hearts { font-size: 15px; }
+  body.coop .hearts2 { font-size: 13px; }
+  body.coop .shards { position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 44px); right: max(12px, env(safe-area-inset-right)); }
 }
 body.coop.touch #bubble { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 250px); }
 
 /* גרירת מצלמה בתלת-ממד (מגע): החצי הימני של המסך, מתחת לכפתורים */
-#camzone, #camzone2 { display: none; position: fixed; top: 0; bottom: 0; touch-action: none; }
-body.mode3d #camzone { display: block; left: 50%; right: 0; }
-body.mode3d.coop #camzone, body.mode3d.coop #camzone2 { display: none; }
+
+/* ---------- פקדי מגע: "משטח" לכל שחקן ---------- */
+#touch { position: absolute; inset: 0; pointer-events: none; }
+#touch .pad { position: absolute; inset: 0; pointer-events: none; }
+#touch .pad > * { pointer-events: auto; }
+#pad2 { display: none; }
+body.coop #pad2 { display: block; }
+.pad .stick { position: absolute; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 10px); left: max(18px, env(safe-area-inset-left)); width: 128px; height: 128px; border-radius: 50%; background: #ffffff14; border: 2px solid #ffffff30; touch-action: none; z-index: 1; }
+.pad .stick i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: #ffffff40; border: 2px solid #ffffff70; }
+.pad .btn-a, .pad .btn-pixi { position: absolute; border-radius: 50%; border: 2px solid #ffffff70; touch-action: none; font-weight: 900; z-index: 1; }
+.pad .btn-a { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 24px); right: max(18px, env(safe-area-inset-right)); width: 84px; height: 84px; background: #ff3d6e88; font-family: var(--f-pixel); font-size: 22px; }
+.pad .btn-pixi { bottom: calc(max(18px, env(safe-area-inset-bottom)) + 118px); right: calc(max(18px, env(safe-area-inset-right)) + 70px); width: 64px; height: 64px; background: #6fe3ff66; font-size: 13px; }
+.pad .on { filter: brightness(1.6); }
+.pad .camzone { display: none; position: absolute; top: 0; bottom: 0; left: 50%; right: 0; touch-action: none; }
+body.mode3d .pad .camzone { display: block; }
+#pad2 .stick { background: #ffcf4a14; border-color: #ffcf4a40; }
+#pad2 .stick i { background: #ffcf4a40; border-color: #ffcf4a80; }
+#pad2 .btn-a { background: #ffcf4a88; }
+/* אחד ליד השני: כל שחקן בחצי שלו (שמאל דן, ימין נועם) */
+body.side #pad1 { right: 50%; }
+body.side #pad2 { left: 50%; }
+/* אחד מול השני: למטה דן, למעלה נועם מסובב 180° */
+body.table #pad1 { top: 50%; }
+body.table #pad2 { bottom: 50%; transform: rotate(180deg); }
+body.coop .pad .stick { width: 104px; height: 104px; }
+body.coop .pad .stick i { width: 44px; height: 44px; margin: -22px; }
+body.coop .pad .btn-a { width: 66px; height: 66px; font-size: 18px; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 16px); }
+body.coop .pad .btn-pixi { width: 52px; height: 52px; font-size: 11px; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 92px); right: calc(max(18px, env(safe-area-inset-right)) + 40px); }
+body.coop #bubble { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 170px); }
+
+/* HUD עליון מסובב לנועם (מצב שולחן) */
+#top { position: absolute; left: 0; right: 0; top: 0; height: 50%; transform: rotate(180deg); pointer-events: none; overflow: hidden; display: none; }
+body.table #top { display: block; }
+body.table #hud { position: absolute; inset: 50% 0 0 0; }
+#top #hud-top { position: absolute; inset: 0; padding: 10px 12px 0; }
+#top .bubble2 { position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%); width: min(92vw, 460px); display: flex; gap: 10px; align-items: center; background: #0b1a22ee; border: 2px solid var(--pixi); border-radius: 14px; padding: 8px 12px; }
+#top .bubble2 img { width: 32px; height: 32px; image-rendering: pixelated; }
+#top .bubble2 p { margin: 0; font-size: 15px; line-height: 1.45; }
+body.table .hearts2 { display: none; }
+body.table .world-name { display: none; }
+body.table #banner { top: 72%; }
+#top .banner2 { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; font-size: clamp(20px, 5vw, 34px); font-weight: 900; text-shadow: 0 3px 0 #000; white-space: nowrap; }
+#top .banner2 small { display: block; font-size: .45em; font-weight: 400; color: var(--muted); }
+#top .bubble2[hidden], #top .banner2[hidden] { display: none; }
+#top #hud-top .boss-bar { top: 46px; }
+.h.gold { color: var(--gold) !important; }
+#split-line { display: none; position: absolute; pointer-events: none; background: #000; z-index: 0; }
+body.table #split-line { display: block; left: 0; right: 0; top: calc(50% - 1px); height: 2px; }
+body.side.mode3d #split-line { display: block; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; }
+
+/* סובבו את הטלפון */
+#rotate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #07060bf2; text-align: center; padding: 24px; z-index: 20; }
+#rotate .ico { font-size: 56px; animation: tilt 1.6s ease-in-out infinite; }
+#rotate p { margin: 0; font-size: 18px; font-weight: 700; }
+#rotate small { color: var(--muted); }
+@keyframes tilt { 50% { transform: rotate(-90deg); } }
+.coop-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+body.table #btn-menu { top: calc(50% - 15px); left: 50%; transform: translateX(-50%); z-index: 3; }

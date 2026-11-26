@@ -257,7 +257,7 @@ export class World2D {
     this.move(d, (inp.x * sp + d.kx) * dt, (inp.y * sp + d.ky) * dt, 4);
     // בשניים: לא מתרחקים מעבר למסך (המצלמה עוקבת אחרי שניהם)
     const o = this.players.find((q) => q !== d && q.hp > 0);
-    if (o && this.vw) { if (Math.abs(d.x - o.x) > this.vw - 40 && Math.abs(d.x - o.x) > Math.abs(ox - o.x)) d.x = ox; if (Math.abs(d.y - o.y) > this.vh - 56 && Math.abs(d.y - o.y) > Math.abs(oy - o.y)) d.y = oy; }
+    if (o && this.vw && input.coopMode !== 'table') { if (Math.abs(d.x - o.x) > this.vw - 40 && Math.abs(d.x - o.x) > Math.abs(ox - o.x)) d.x = ox; if (Math.abs(d.y - o.y) > this.vh - 56 && Math.abs(d.y - o.y) > Math.abs(oy - o.y)) d.y = oy; }
     d.kx *= Math.exp(-10 * dt); d.ky *= Math.exp(-10 * dt);
     // נפילה לחור void
     if (this.tileAt(d.x, d.y - 2) === 'void') {
@@ -394,10 +394,10 @@ export class World2D {
   }
 
   // ---------- ציור ----------
-  draw(ctx, VW, VH) {
+  draw(ctx, VW, VH, focus = null) {
     const c = this.cfg, d = this.dan, col = c.colors;
-    this.vw = VW; this.vh = VH;
-    const al = this.alive(), fx0 = al.length ? al.reduce((a, p) => a + p.x, 0) / al.length : d.x, fy0 = al.length ? al.reduce((a, p) => a + p.y, 0) / al.length : d.y;
+    if (!focus) { this.vw = VW; this.vh = VH; }
+    const al = focus ? [focus] : this.alive(), fx0 = al.length ? al.reduce((a, p) => a + p.x, 0) / al.length : d.x, fy0 = al.length ? al.reduce((a, p) => a + p.y, 0) / al.length : d.y;
     let camX = clamp(fx0 - VW / 2, 0, Math.max(0, this.W * T - VW)), camY = clamp(fy0 - 8 - VH / 2, 0, Math.max(0, this.H * T - VH));
     if (this.W * T < VW) camX = (this.W * T - VW) / 2; if (this.H * T < VH) camY = (this.H * T - VH) / 2;
     if (this.shake > 0) { camX += (Math.random() - 0.5) * 6; camY += (Math.random() - 0.5) * 6; }

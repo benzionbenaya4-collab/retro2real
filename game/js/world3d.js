@@ -96,10 +96,11 @@ export class World3D {
     this.danC = buildFromScene(this.danG.scene, { height: 1.75 });
     this.danC.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     S.add(this.danC.root);
-    Object.assign(this.dan, { C: this.danC, id: 1 }); this.players = [this.dan]; this.noam = null;
+    Object.assign(this.dan, { C: this.danC, id: 1 }); this.players = [this.dan]; this.noam = null; this.split = false;
     if (input.coop && this.noamG) { // נועם – שחקן 2
       const nc = buildFromScene(this.noamG.scene, { height: 1.55 }); nc.root.traverse((o) => { if (o.isMesh) o.castShadow = true; }); S.add(nc.root);
       this.noam = { ...this.dan, pos: this.dan.pos.clone().add(new V3(1.2, 0, 0)), kb: new V3(), C: nc, id: 2, hp: D.hp }; this.players.push(this.noam);
+      this.split = !!input.coopMode; this.cam2 = this.cam.clone(); this.noam.camYaw = 0; this.noam.camPitch = 0.3;
       const nm = canvasTex(16, 8, (x) => { x.fillStyle = '#ffcf4a'; x.fillRect(0, 0, 16, 8); }); const tg = new THREE.Sprite(new THREE.SpriteMaterial({ map: nm })); tg.scale.set(0.16, 0.08, 1); tg.position.y = 1.85; nc.root.add(tg);
     }
     this.setSword(false);
@@ -300,7 +301,7 @@ export class World3D {
     this.collide(d.pos, 0.4);
     const L = Math.hypot(d.pos.x, d.pos.z); if (L > B) d.pos.multiplyScalar(B / L);
     const o = this.players.find((q) => q !== d && q.hp > 0); // בשניים: לא מתרחקים מדי
-    if (o && d.pos.distanceTo(o.pos) > 11 && d.pos.distanceTo(o.pos) > old.distanceTo(o.pos)) d.pos.copy(old);
+    if (o && !this.split && d.pos.distanceTo(o.pos) > 11 && d.pos.distanceTo(o.pos) > old.distanceTo(o.pos)) d.pos.copy(old);
     C.root.position.copy(d.pos); C.root.rotation.y = d.yaw;
     C.anim.update(dt, { speed: Math.abs(mv) / c.dan.speed * 0.9, yawRate: (d.yaw - yaw0) / Math.max(dt, 1e-3) });
     C.root.visible = !(d.inv > 0 && Math.floor(d.inv * 14) % 2);
@@ -423,13 +424,11 @@ export class World3D {
     this.parts = this.parts.filter((p) => !p.dead);
   }
   camFollow(dt) {
-    if (this.noam) return this.camCoop(dt);
-    const d = this.dan, c = this.cam, cy = d.camYaw ?? d.yaw, s = Math.sin(cy), co = Math.cos(cy), p = d.camPitch ?? 0.3;
-    const nar = c.aspect < 1, D = nar ? 4.8 : 3.9, sh = nar ? -0.3 : -0.7, hz = Math.cos(p) * D;
-    const want = new V3(d.pos.x - s * hz + co * sh, 1.4 + Math.sin(p) * D, d.pos.z - co * hz - s * sh);
-    if (!this.camInit) { c.position.copy(want); this.camInit = true; }
-    c.position.lerp(want, 1 - Math.exp(-14 * dt));
-    c.lookAt(d.pos.x + s * 2.5 + co * -0.3, 1.3, d.pos.z + co * 2.5 - s * -0.3);
+    if (this.noam && !this.split) return this.camCoop(dt);
+    this.camFor(this.dan, this.cam, dt, this.camInit);
+    if (this.split) this.camFor(this.noam, this.cam2, dt, this.camInit, input.coopMode === 'table');
+    this.camInit = true;
+    const d = this.dan.hp > 0 || !this.noam ? this.dan : this.noam, cy = d.camYaw ?? d.yaw, s = Math.sin(cy), co = Math.cos(cy);
     // פיקסי ליד הכתף
     const pp = new V3(d.pos.x + co * 0.7 - s * 0.3, 2.05 + Math.sin(this.t * 4) * 0.08, d.pos.z - s * 0.7 - co * 0.3);
     this.pixiS.position.lerp(pp, 1 - Math.exp(-6 * dt));
@@ -437,8 +436,18 @@ export class World3D {
     if (this.pixiL) { this.pixiL.position.copy(this.pixiS.position); this.pixiL.intensity = pixi.out ? 0.3 : 3; }
     if (this.sun.castShadow) { this.sun.position.set(d.pos.x + 8, 14, d.pos.z + 6); this.sun.target.position.copy(d.pos); this.sun.target.updateMatrixWorld(); }
   }
+  /** מצלמה מאחורי הכתף של שחקן (yaw/pitch שלו). roll = 180° לחצי העליון במצב שולחן */
+  camFor(d, c, dt, inited = true, roll = false) {
+    const cy = d.camYaw ?? d.yaw, s = Math.sin(cy), co = Math.cos(cy), p = d.camPitch ?? 0.3;
+    const nar = c.aspect < 1, D = nar ? 4.8 : 3.9, sh = nar ? -0.3 : -0.7, hz = Math.cos(p) * D;
+    const want = new V3(d.pos.x - s * hz + co * sh, 1.4 + Math.sin(p) * D, d.pos.z - co * hz - s * sh);
+    if (!inited) c.position.copy(want);
+    c.position.lerp(want, 1 - Math.exp(-14 * dt));
+    c.up.set(0, 1, 0); c.lookAt(d.pos.x + s * 2.5 + co * -0.3, 1.3, d.pos.z + co * 2.5 - s * -0.3);
+    if (roll) c.rotateZ(Math.PI);
+  }
   /** כיוון המצלמה שלפיו זזים: בשניים עם מצלמה משותפת – קבוע (מבט ל-+Z) */
-  camYawFor(d) { return this.noam ? 0 : (d.camYaw ?? d.yaw); }
+  camYawFor(d) { return this.noam && !this.split ? 0 : (d.camYaw ?? d.yaw); }
   /** שניים: מצלמה גבוהה בכיוון קבוע, מאחורי נקודת האמצע, מתרחקת כשהם מתרחקים */
   camCoop(dt) {
     const al = this.alive().length ? this.alive() : this.players, c = this.cam;
@@ -456,7 +465,16 @@ export class World3D {
   render() {
     if (!R) return;
     if (!this.result || this.endT < 1.4) this.camFollow(1 / 60);
-    R.render(this.scene, this.cam);
+    const W = R.domElement.width, H = R.domElement.height;
+    if (!this.split) { R.setScissorTest(false); R.setViewport(0, 0, W, H); R.render(this.scene, this.cam); return; }
+    // מסך מפוצל: side – שמאל דן / ימין נועם · table – למטה דן / למעלה נועם (מסובב)
+    const vps = input.coopMode === 'table' ? [[0, 0, W, H >> 1], [0, H >> 1, W, H - (H >> 1)]] : [[0, 0, W >> 1, H], [W >> 1, 0, W - (W >> 1), H]];
+    R.setScissorTest(true);
+    [this.cam, this.cam2].forEach((cam, i) => {
+      const [x, y, w, h] = vps[i]; if (Math.abs(cam.aspect - w / h) > 1e-3) { cam.aspect = w / h; cam.updateProjectionMatrix(); }
+      R.setViewport(x, y, w, h); R.setScissor(x, y, w, h); R.render(this.scene, cam);
+    });
+    R.setScissorTest(false);
   }
   dispose() {
     this.scene?.traverse((o) => { if (o.geometry) o.geometry.dispose(); });

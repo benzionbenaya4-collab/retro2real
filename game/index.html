@@ -19,18 +19,18 @@
 
   <div id="hud" hidden>
     <div class="hud-row">
-      <div id="hearts" aria-label="חיים"></div>
-      <div id="hearts2" class="p2only" aria-label="חיים של נועם"></div>
-      <div id="shards" class="px"></div>
+      <div id="hearts" class="hearts" aria-label="חיים"></div>
+      <div id="hearts2" class="hearts2 p2only" aria-label="חיים של נועם"></div>
+      <div id="shards" class="shards px"></div>
     </div>
-    <div id="world-name"></div>
-    <div id="tokens" aria-label="טוקנים של פיקסי">
+    <div id="world-name" class="world-name"></div>
+    <div id="tokens" class="tokens" aria-label="טוקנים של פיקסי">
       <span class="tk-label">פיקסי</span>
       <div class="tk-bar"><i></i></div>
       <span class="tk-num px">100</span>
     </div>
-    <div id="boost" hidden aria-label="בוסט מהירות"><span>⚡</span><div class="bt"><i></i></div></div>
-    <div id="boss-bar" hidden><span id="boss-name"></span><div class="bb"><i></i></div></div>
+    <div id="boost" class="boost" hidden aria-label="בוסט מהירות"><span>⚡</span><div class="bt"><i></i></div></div>
+    <div id="boss-bar" class="boss-bar" hidden><span id="boss-name" class="boss-name"></span><div class="bb"><i></i></div></div>
   </div>
 
   <div id="bubble" hidden><img src="../assets/sprites/16bit/pixi_sprite.png" alt=""><p></p></div>
@@ -43,17 +43,25 @@
     <div id="mini-end" hidden><h2></h2><p></p><div class="row"><button id="mini-again" class="menu-btn ghost">שוב</button><button id="mini-back" class="menu-btn">חזרה לעולם</button></div></div>
   </section>
 
+  <div id="split-line"></div>
+  <div id="top" aria-hidden="true"></div>
   <div id="touch" hidden>
-    <div id="camzone" aria-hidden="true"></div>
-    <div id="camzone2" aria-hidden="true"></div>
-    <div id="stick"><i></i></div>
-    <button id="btn-pixi" aria-label="פיקסי">פיקסי</button>
-    <button id="btn-a" aria-label="חרב">A</button>
-    <div id="stick2" class="p2only"><i></i></div>
-    <button id="btn-a2" class="p2only" aria-label="חרב של שחקן 2">A</button>
+    <div class="pad" id="pad1">
+      <div class="camzone" id="camzone"></div>
+      <div class="stick" id="stick"><i></i></div>
+      <button class="btn-pixi" id="btn-pixi" aria-label="פיקסי">פיקסי</button>
+      <button class="btn-a" id="btn-a" aria-label="חרב">A</button>
+    </div>
+    <div class="pad" id="pad2">
+      <div class="camzone" id="camzone2"></div>
+      <div class="stick" id="stick2"><i></i></div>
+      <button class="btn-pixi" id="btn-pixi2" aria-label="פיקסי (נועם)">פיקסי</button>
+      <button class="btn-a" id="btn-a2" aria-label="חרב של נועם">A</button>
+    </div>
   </div>
   <button id="btn-menu" hidden aria-label="השהיה">❚❚</button>
 
+  <section id="rotate" hidden><div class="ico">📱</div><p></p><small></small></section>
   <section id="title" class="screen">
     <div class="logo">
       <h1>מרטרו לרגיל</h1>
@@ -65,7 +73,10 @@
       <button id="btn-continue" class="menu-btn">המשך מ<span></span></button>
       <button id="btn-new" class="menu-btn ghost">משחק חדש</button>
     </div>
-    <button id="btn-coop" class="coop-btn" aria-pressed="false">👥 שחקן שני: <b>כבוי</b></button>
+    <div class="coop-row">
+      <button id="btn-side" class="coop-btn" aria-pressed="false">👥 לשניים – אחד ליד השני</button>
+      <button id="btn-table" class="coop-btn" aria-pressed="false">🔄 לשניים – אחד מול השני</button>
+    </div>
     <p class="hint"><span class="kb">חצים / WASD – תזוזה · רווח – חרב · P – פיקסי · בתלת־ממד: WASD הליכה, חצים/עכבר מצלמה<br>שני שחקנים: דן WASD + J · נועם חצים + Enter</span><span class="tc">ג'ויסטיק – תזוזה · A – חרב · פיקסי – סריקה</span></p>
     <button id="btn-sound" class="sound">🔊</button>
   </section>
