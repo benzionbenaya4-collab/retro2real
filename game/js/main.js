@@ -8,7 +8,7 @@ import * as store from './save.js';
 import { WORLDS, makeLevel, load3D, ALL_TAPES } from './worlds.js';
 import { makeMini, TAPES } from './minigames.js';
 import { loadSprite } from './assets.js';
-import { Ending } from './ending.js';
+import { Ending, Ch2End } from './ending.js';
 import { unlockFor } from './tools.js';
 
 const view = $('#view'), ctx = view.getContext('2d'), glc = $('#gl');
@@ -65,10 +65,12 @@ function showTitle() {
   const cont = save.world > 1 && WORLDS[save.world];
   $('#continue-box').hidden = !cont; $('#press-start').hidden = !!cont;
   if (cont) $('#btn-continue span').textContent = WORLDS[save.world].short;
+  $('#btn-ch2').hidden = !save.ch2;
   audio.play('title', 0);
 }
 function pressStart() { audio.unlock(); audio.sfx('start'); enterWorld(1, true); }
 $('#press-start').onclick = pressStart;
+$('#btn-ch2').onclick = () => { audio.unlock(); audio.sfx('start'); enterWorld(5, true); };
 $('#btn-continue').onclick = () => { audio.unlock(); audio.sfx('start'); enterWorld(save.world, true); };
 $('#btn-new').onclick = () => { audio.unlock(); save = store.save({ world: 1 }); pressStart(); };
 
@@ -104,6 +106,7 @@ function onResult(r) {
   showTouch(false);
   if (r === 'dead') return card('GAME OVER', input.coop ? 'דן ונועם נפלו…' : 'דן נפל…', 'פיקסי שמר נקודת ביקורת בתחילת העולם. ננסה שוב?', 'נסה שוב', () => enterWorld(worldId, false));
   const next = WORLDS[worldId].next;
+  if (WORLDS[worldId].chapter2) return startEnding(new Ch2End());
   if (!next && WORLDS[worldId].final) return finale();
   if (!next) return card('TO BE CONTINUED', 'המשך יבוא…', 'השער פתוח, אבל העולם הבא עדיין בבנייה. פיקסי כבר מחמם את השרתים.', 'למסך הפתיחה', showTitle);
   save = store.save({ world: Math.max(save.world, next) });
@@ -112,10 +115,10 @@ function onResult(r) {
 }
 // סוף פתוח: הקונסולה של נועם נדלקת לבד…
 let ending = null;
-function startEnding() {
+function startEnding(scene) {
   screen(null); hud.show(false); showTouch(false); $('#btn-menu').hidden = true;
   glc.hidden = true; view.hidden = false; setMode3d(false); level?.dispose?.(); level = null; fit();
-  audio.stop(); ending = new Ending(); state = 'ending';
+  audio.stop(); ending = scene instanceof Ch2End ? scene : new Ending(); state = 'ending'; if (scene instanceof Ch2End) audio.play('home', 3);
 }
 // פיקסי 1.0 הובס – פיקסי צריך להחליט. בסוף מתקנים אותו.
 function finale() {
@@ -220,7 +223,8 @@ function frame(now) {
     }
   } else if (state === 'pause' && input.pausePressed) pause(false);
   else if (state === 'ending' && ending) {
-    if (ending.update(dt, input) === 'done') { ending.dispose(); ending = null; showTitle(); }
+    const r = ending.update(dt, input);
+    if (r) { ending.dispose(); ending = null; save = store.save({ ch2: true }); if (r === 'ch2') enterWorld(5, true); else showTitle(); }
     else ending.draw(ctx, VW, VH);
   }
   else if (state === 'mini' && mini.game) {

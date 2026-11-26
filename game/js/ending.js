@@ -17,7 +17,9 @@ export class Ending {
     else if (P === 'eye' && this.pt > 1.4) { this.setPhase('off'); this.static(0.25); }
     else if (P === 'off' && this.pt > 0.7) { this.setPhase('black'); }
     else if (P === 'black' && this.pt > 1.2) { this.setPhase('cont'); }
-    else if (P === 'cont' && this.pt > 3.2 && (inp.aPressed || this.clicked || this.pt > 9)) return 'done';
+    else if (P === 'cont' && this.pt > 2.4 && !this.choices) this.showChoices();
+    else if (P === 'cont' && this.choice) return this.choice;
+    else if (P === 'cont' && this.choices && inp.aPressed) return 'ch2';
     this.clicked = false;
     return null;
   }
@@ -29,7 +31,14 @@ export class Ending {
     }
     if (!on && this.btn) { this.btn.remove(); this.btn = null; }
   }
-  dispose() { this.showButton(false); }
+  /** אחרי "להמשך…": כפתור "פרק 2" */
+  showChoices() {
+    const box = document.createElement('div'); box.className = 'end-choices';
+    box.innerHTML = '<button class="menu-btn">▶ פרק 2 – החיים האמיתיים</button><button class="menu-btn ghost">למסך הפתיחה</button>';
+    const [a, b] = box.querySelectorAll('button'); a.onclick = () => (this.choice = 'ch2'); b.onclick = () => (this.choice = 'title');
+    document.getElementById('stage').appendChild(box); this.choices = box; setTimeout(() => a.focus(), 30);
+  }
+  dispose() { this.showButton(false); this.choices?.remove(); this.choices = null; }
   draw(ctx, W, H) {
     const P = this.phase, t = this.t, pt = this.pt;
     ctx.fillStyle = '#05040a'; ctx.fillRect(0, 0, W, H);
@@ -37,7 +46,7 @@ export class Ending {
       if (P === 'cont') {
         ctx.save(); ctx.globalAlpha = Math.min(1, pt / 1.2); ctx.fillStyle = '#efe9f7'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'rtl';
         ctx.font = `900 ${Math.round(Math.min(W, H) * 0.14)}px Rubik, sans-serif`; ctx.fillText('להמשך…', W / 2, H / 2);
-        if (pt > 3.2 && Math.floor(t * 2) % 2) { ctx.font = '7px "Press Start 2P", monospace'; ctx.direction = 'ltr'; ctx.fillStyle = '#9a90ad'; ctx.fillText('PRESS A', W / 2, H / 2 + Math.min(W, H) * 0.16); }
+        if (false) { ctx.font = '7px "Press Start 2P", monospace'; ctx.direction = 'ltr'; ctx.fillStyle = '#9a90ad'; ctx.fillText('PRESS A', W / 2, H / 2 + Math.min(W, H) * 0.16); }
         ctx.restore();
       }
       return;
@@ -88,5 +97,37 @@ export class Ending {
       if (P === 'wait' && (t * 0.8) % 2 < 0.2) { ctx.fillStyle = '#ff3d6e'; ctx.fillRect(tx + 11, ty + 4, 2, 2); }
       ctx.restore();
     }
+  }
+}
+
+// סוף פרק 2: הבית חזר לשגרה. החדר של נועם בחושך, ועל הקונסולה מהבהבת נורה אדומה אחת. רמז קטן.
+export class Ch2End {
+  constructor() { this.t = 0; this.done = false; }
+  update(dt, inp) {
+    this.t += dt;
+    if (this.t > 3 && !this.btn) { const b = document.createElement('button'); b.className = 'menu-btn end-insert'; b.textContent = 'למסך הפתיחה'; b.onclick = () => (this.done = true); document.getElementById('stage').appendChild(b); this.btn = b; setTimeout(() => b.focus(), 30); }
+    if (this.done || (this.btn && inp.aPressed)) return 'title';
+    return null;
+  }
+  dispose() { this.btn?.remove(); this.btn = null; }
+  draw(ctx, W, H) {
+    const t = this.t, cx = W / 2;
+    ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, W, H);
+    // חלון עם ירח
+    ctx.fillStyle = '#1b2440'; ctx.fillRect(Math.round(W * 0.06), Math.round(H * 0.4), Math.round(W * 0.16), Math.round(H * 0.2)); ctx.fillStyle = '#9fb4ff'; ctx.fillRect(Math.round(W * 0.12), Math.round(H * 0.44), 4, 4);
+    // שולחן + מסך כבוי + קונסולה
+    const tvW = Math.min(90, W * 0.45), tvH = tvW * 0.62, tvY = H * 0.36;
+    ctx.fillStyle = '#2b2538'; ctx.fillRect(cx - tvW / 2 - 4, tvY - 4, tvW + 8, tvH + 8); ctx.fillStyle = '#000'; ctx.fillRect(cx - tvW / 2, tvY, tvW, tvH);
+    ctx.fillStyle = '#3a2618'; ctx.fillRect(cx - tvW * 0.8, tvY + tvH + 18, tvW * 1.6, 6);
+    const cw = tvW * 0.6, cy = tvY + tvH + 8; ctx.fillStyle = '#3a3550'; ctx.fillRect(cx - cw / 2, cy, cw, 10); ctx.fillStyle = '#05040a'; ctx.fillRect(cx - 10, cy + 2, 20, 3);
+    // הנורה האדומה – מהבהבת
+    const on = Math.floor(t * 1.6) % 2 === 0;
+    ctx.fillStyle = on ? '#ff3d6e' : '#2b0a12'; ctx.fillRect(cx - cw / 2 + 4, cy + 4, 3, 3);
+    if (on) { const g = ctx.createRadialGradient(cx - cw / 2 + 5, cy + 5, 1, cx - cw / 2 + 5, cy + 5, 22); g.addColorStop(0, '#ff3d6e55'); g.addColorStop(1, '#0000'); ctx.fillStyle = g; ctx.fillRect(cx - cw / 2 - 20, cy - 20, 50, 50); }
+    // טקסט
+    ctx.save(); ctx.globalAlpha = Math.min(1, Math.max(0, (t - 0.8) / 1.2)); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'rtl';
+    ctx.fillStyle = '#efe9f7'; ctx.font = `900 ${Math.round(Math.min(W, H) * 0.1)}px Rubik, sans-serif`; ctx.fillText('פרק 2 – הושלם', cx, H * 0.16);
+    ctx.font = `400 ${Math.round(Math.min(W, H) * 0.045)}px Rubik, sans-serif`; ctx.fillStyle = '#9a90ad'; ctx.fillText('הבית חזר לשגרה. בערך.', cx, H * 0.16 + Math.min(W, H) * 0.09);
+    ctx.restore();
   }
 }

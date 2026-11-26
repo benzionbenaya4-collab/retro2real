@@ -220,3 +220,6 @@ body.coop .pad .btn-tool span { font-size: 18px; }
 /* טלפון נעול בכיוון הלא נכון למצב השניים: מסובבים את כל מכולת המשחק 90° עם כיוון השעון */
 body.rot90 #stage { inset: auto; top: 0; left: 0; width: 100vh; height: 100vw; transform-origin: 0 0; transform: translate(100vw, 0) rotate(90deg); }
 body.rot90 #rotate { display: none !important; }
+
+.end-choices { position: absolute; left: 50%; bottom: max(10%, calc(env(safe-area-inset-bottom) + 30px)); transform: translateX(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 5; }
+.ch2-btn { border-color: var(--glitch); background: #ff3d6e22; }

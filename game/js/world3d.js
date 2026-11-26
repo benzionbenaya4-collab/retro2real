@@ -57,44 +57,12 @@ export class World3D {
     this.sun = sun;
     const Mat = (o) => (retro ? new THREE.MeshLambertMaterial({ flatShading: true, ...o }) : new THREE.MeshStandardMaterial({ roughness: 0.85, ...o }));
     this.Mat = Mat;
-    // רצפה
-    const B = c.bounds, gcol = c.ground;
-    const gtex = canvasTex(retro ? 32 : 256, retro ? 32 : 256, (x, w, h) => {
-      const r = rng(7); x.fillStyle = gcol[0]; x.fillRect(0, 0, w, h); const s = w / 2;
-      x.fillStyle = gcol[1]; x.fillRect(0, 0, s, s); x.fillRect(s, s, s, s);
-      for (let i = 0; i < w * h * 0.05; i++) { x.fillStyle = r() < 0.5 ? gcol[2] : gcol[0]; x.fillRect(Math.floor(r() * w), Math.floor(r() * h), retro ? 1 : 2, retro ? 1 : 2); }
-    }, retro);
-    gtex.wrapS = gtex.wrapT = THREE.RepeatWrapping; gtex.repeat.set(B, B); if (!retro) gtex.anisotropy = 4;
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(B + 14, retro ? 24 : 64), Mat({ map: gtex }));
-    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; S.add(floor);
-    // גבול: טבעת עמודי גליץ'
-    this.solids = []; const r = rng(c.seed || 3);
-    const edgeM = new THREE.LineBasicMaterial({ color: '#ff3d6e' }), voidM = new THREE.MeshBasicMaterial({ color: '#05030a' });
-    const pillarG = new THREE.BoxGeometry(1, 3, 1), edgeG = new THREE.EdgesGeometry(pillarG);
-    this.pillars = [];
-    const ring = Math.round(B * 1.6);
-    for (let i = 0; i < ring; i++) {
-      const a = (i / ring) * Math.PI * 2, p = new THREE.Group();
-      p.add(new THREE.Mesh(pillarG, voidM)); p.add(new THREE.LineSegments(edgeG, edgeM));
-      const h = 1 + r() * 2.5; p.scale.set(1 + r(), h, 1 + r()); p.position.set(Math.cos(a) * (B + 1.5), h * 1.5 - 0.2, Math.sin(a) * (B + 1.5)); p.rotation.y = r() * 3;
-      S.add(p); this.pillars.push(p);
-    }
-    // עצים וסלעים
-    const treeTop = Mat({ color: c.tree || '#3f8f3a' }), trunk = Mat({ color: '#6b4a2b' }), rockM = Mat({ color: '#8a8794' });
-    const nTrees = c.mode === 'arena' ? 4 : Math.round(B * 1.5);
-    for (let i = 0; i < nTrees; i++) {
-      let x, z; for (let k = 0; k < 30; k++) { const a = r() * 6.28, d = (c.mode === 'arena' ? 6 : 4) + r() * (B - 5); x = Math.cos(a) * d; z = Math.sin(a) * d; if (Math.hypot(x, z + B * 0.6) > 4) break; }
-      const g = new THREE.Group();
-      if (r() < 0.75) {
-        const t = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1, 5), trunk); t.position.y = 0.5;
-        const top = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.2, retro ? 5 : 9), treeTop); top.position.y = 2;
-        g.add(t, top); this.solids.push({ x, z, r: 0.55 });
-      } else { const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), rockM); s.position.y = 0.35; s.scale.y = 0.7; g.add(s); this.solids.push({ x, z, r: 0.75 }); }
-      g.position.set(x, 0, z); g.rotation.y = r() * 6; g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); S.add(g);
-    }
+    const B = c.bounds;
+    this.solids = []; this.boxes = []; this.pillars = [];
+    this.buildEnv(S, Mat);
     // דן
     const D = c.dan;
-    this.dan = { hp: D.hp, inv: 0, yaw: 0, pos: new V3(0, 0, -B * 0.6), speed: 0, atkT: 9, atkCd: 0, hitDone: true, kb: new V3() };
+    this.dan = { hp: D.hp, inv: 0, pos: c.start ? new V3(c.start[0], 0, c.start[1]) : new V3(0, 0, -B * 0.6), yaw: c.startYaw || 0, speed: 0, atkT: 9, atkCd: 0, hitDone: true, kb: new V3() };
     this.danC = buildFromScene(this.danG.scene, { height: 1.75 });
     this.danC.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     S.add(this.danC.root);
@@ -155,6 +123,44 @@ export class World3D {
     if (c.mode === 'arena') this.startArena();
     pixi.reset(true);
     this.resize(viewW(), viewH());
+  }
+
+  /** הסביבה: רצפה, עמודי גליץ', עצים וסלעים. House דורס את זה */
+  buildEnv(S, Mat) {
+    // רצפה
+    const c = this.cfg, retro = c.era === '32', B = c.bounds, gcol = c.ground;
+    const gtex = canvasTex(retro ? 32 : 256, retro ? 32 : 256, (x, w, h) => {
+      const r = rng(7); x.fillStyle = gcol[0]; x.fillRect(0, 0, w, h); const s = w / 2;
+      x.fillStyle = gcol[1]; x.fillRect(0, 0, s, s); x.fillRect(s, s, s, s);
+      for (let i = 0; i < w * h * 0.05; i++) { x.fillStyle = r() < 0.5 ? gcol[2] : gcol[0]; x.fillRect(Math.floor(r() * w), Math.floor(r() * h), retro ? 1 : 2, retro ? 1 : 2); }
+    }, retro);
+    gtex.wrapS = gtex.wrapT = THREE.RepeatWrapping; gtex.repeat.set(B, B); if (!retro) gtex.anisotropy = 4;
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(B + 14, retro ? 24 : 64), Mat({ map: gtex }));
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; S.add(floor);
+    // גבול: טבעת עמודי גליץ'
+    const r = rng(c.seed || 3);
+    const edgeM = new THREE.LineBasicMaterial({ color: '#ff3d6e' }), voidM = new THREE.MeshBasicMaterial({ color: '#05030a' });
+    const pillarG = new THREE.BoxGeometry(1, 3, 1), edgeG = new THREE.EdgesGeometry(pillarG);
+    const ring = Math.round(B * 1.6);
+    for (let i = 0; i < ring; i++) {
+      const a = (i / ring) * Math.PI * 2, p = new THREE.Group();
+      p.add(new THREE.Mesh(pillarG, voidM)); p.add(new THREE.LineSegments(edgeG, edgeM));
+      const h = 1 + r() * 2.5; p.scale.set(1 + r(), h, 1 + r()); p.position.set(Math.cos(a) * (B + 1.5), h * 1.5 - 0.2, Math.sin(a) * (B + 1.5)); p.rotation.y = r() * 3;
+      S.add(p); this.pillars.push(p);
+    }
+    // עצים וסלעים
+    const treeTop = Mat({ color: c.tree || '#3f8f3a' }), trunk = Mat({ color: '#6b4a2b' }), rockM = Mat({ color: '#8a8794' });
+    const nTrees = c.mode === 'arena' ? 4 : Math.round(B * 1.5);
+    for (let i = 0; i < nTrees; i++) {
+      let x, z; for (let k = 0; k < 30; k++) { const a = r() * 6.28, d = (c.mode === 'arena' ? 6 : 4) + r() * (B - 5); x = Math.cos(a) * d; z = Math.sin(a) * d; if (Math.hypot(x, z + B * 0.6) > 4) break; }
+      const g = new THREE.Group();
+      if (r() < 0.75) {
+        const t = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1, 5), trunk); t.position.y = 0.5;
+        const top = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.2, retro ? 5 : 9), treeTop); top.position.y = 2;
+        g.add(t, top); this.solids.push({ x, z, r: 0.55 });
+      } else { const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), rockM); s.position.y = 0.35; s.scale.y = 0.7; g.add(s); this.solids.push({ x, z, r: 0.75 }); }
+      g.position.set(x, 0, z); g.rotation.y = r() * 6; g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); S.add(g);
+    }
   }
 
   setSword(infinite) { this.danC.setWeapon(this.makeSword(infinite), 'knife'); if (infinite && this.noam) this.noam.C.setWeapon(this.makeSword(true), 'knife'); }
@@ -240,6 +246,10 @@ export class World3D {
     // ברקי קוד
     for (const b of this.bolts) {
       b.m.position.addScaledVector(b.v, dt); b.t += dt; b.m.rotation.x += dt * 8;
+      if (b.grav) { // קוביית קרח: עפה בקשת ומתנפצת ברצפה
+        b.v.y -= 9.8 * dt;
+        if (b.m.position.y < 0.12) { b.dead = true; this.burst(b.m.position, '#bff6ff', 8, 3); audio.sfx('hit'); const p = this.alive().find((q) => Math.hypot(q.pos.x - b.m.position.x, q.pos.z - b.m.position.z) < 0.9); if (p) this.hurt(p, 1, b.v); this.scene.remove(b.m); continue; }
+      }
       const p = this.alive().find((q) => b.m.position.distanceTo(new V3(q.pos.x, 1.1, q.pos.z)) < 0.6);
       if (p) { b.dead = true; this.hurt(p, 1, b.v); }
       if (b.t > 4) b.dead = true;
@@ -259,7 +269,8 @@ export class World3D {
       if (k.taken) continue; k.m.rotation.z += dt * 3; k.m.position.y = 0.5 + Math.sin(this.t * 2) * 0.08;
       if (near(k.m.position, 0.8)) { k.taken = true; this.scene.remove(k.m); pixi.collectCoin(k.id); this.burst(k.m.position, '#ffcf4a', 16); }
     }
-    if (c.mode !== 'arena') this.updateWaves(dt);
+    if (c.mode === 'world') this.updateWaves(dt);
+    this.extraUpdate?.(dt);
     if (this.portal) {
       this.portal.rotation.z += dt * 2; this.portal.children[0].material.opacity = 0.5 + Math.sin(this.t * 6) * 0.2;
       if (near(this.portal.position, 1.4)) { this.result = 'win'; audio.sfx('warp'); this.flash('#ffffff'); }
@@ -274,7 +285,7 @@ export class World3D {
     for (const p of this.players) hud.tool(p.id, p.hp > 0 ? toolHud(p) : null); if (!this.noam) hud.tool(2, null);
     for (const p of this.players) { hud.popup(p.id, this.enemies.some((e) => e.attached === p && !e.dead)); if (p.warn) p.warn.visible = p.conf > 0 && Math.floor(this.t * 4) % 2 === 0; }
     hud.hearts(Math.max(0, d.hp), c.dan.hp); hud.hearts2(this.noam ? Math.max(0, this.noam.hp) : null, c.dan.hp); hud.shards(this.got, this.shards.length);
-    if (this.boss && this.boss.hp > 0) hud.bossBar(c.boss.label, this.boss.hp / this.boss.max); else hud.bossBar(null);
+    if (this.boss && this.boss.hp > 0) hud.bossBar(c.boss.label, this.boss.hp / this.boss.max); else if (!this.barOwner) hud.bossBar(null);
     return null;
   }
   alive() { return this.players.filter((p) => p.hp > 0); }
@@ -311,7 +322,7 @@ export class World3D {
     const old = d.pos.clone();
     d.pos.addScaledVector(dir, mv * dt).addScaledVector(d.kb, dt); d.kb.multiplyScalar(Math.exp(-8 * dt));
     this.collide(d.pos, 0.4);
-    const L = Math.hypot(d.pos.x, d.pos.z); if (L > B) d.pos.multiplyScalar(B / L);
+    this.clampPos(d.pos);
     const o = this.players.find((q) => q !== d && q.hp > 0); // בשניים: לא מתרחקים מדי
     if (o && !this.split && d.pos.distanceTo(o.pos) > 11 && d.pos.distanceTo(o.pos) > old.distanceTo(o.pos)) d.pos.copy(old);
     C.root.position.copy(d.pos); C.root.rotation.y = d.yaw;
@@ -331,7 +342,16 @@ export class World3D {
       if (this.swordMul > 1) this.burst(d.pos.clone().addScaledVector(fwd, 1.4), '#6fe3ff', 6, 3);
     }
   }
-  collide(p, r) { for (const s of this.solids) { const dx = p.x - s.x, dz = p.z - s.z, l = Math.hypot(dx, dz), m = s.r + r; if (l < m && l > 1e-4) { p.x = s.x + (dx / l) * m; p.z = s.z + (dz / l) * m; } } }
+  /** גבולות: עגול (זירה). House דורס למלבן */
+  clampPos(p) { const B = this.cfg.bounds, L = Math.hypot(p.x, p.z); if (L > B) p.multiplyScalar(B / L); }
+  /** קירות/רהיטים מלבניים: {x0,x1,z0,z1} */
+  collideBoxes(p, r) {
+    for (const b of this.boxes || []) {
+      const cx = clamp(p.x, b.x0, b.x1), cz = clamp(p.z, b.z0, b.z1), dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
+      if (d < r) { if (d > 1e-4) { p.x = cx + (dx / d) * r; p.z = cz + (dz / d) * r; } else { const l = p.x - b.x0, rr = b.x1 - p.x, t = p.z - b.z0, bt = b.z1 - p.z, m = Math.min(l, rr, t, bt); if (m === l) p.x = b.x0 - r; else if (m === rr) p.x = b.x1 + r; else if (m === t) p.z = b.z0 - r; else p.z = b.z1 + r; } }
+    }
+  }
+  collide(p, r) { this.collideBoxes(p, r); for (const s of this.solids) { const dx = p.x - s.x, dz = p.z - s.z, l = Math.hypot(dx, dz), m = s.r + r; if (l < m && l > 1e-4) { p.x = s.x + (dx / l) * m; p.z = s.z + (dz / l) * m; } } }
   hurt(d, n, dir) {
     if (d.hp <= 0 || d.inv > 0) return; d.hp -= n; d.inv = 1.1; audio.sfx('hurt'); this.flash('#ff3d6e');
     const v = new V3(dir.x, 0, dir.z); if (v.lengthSq() > 0) d.kb.copy(v.normalize().multiplyScalar(6));
@@ -339,7 +359,7 @@ export class World3D {
   flash(color) { const el = document.getElementById('stage'); el.style.boxShadow = `inset 0 0 0 100vmax ${color}55`; clearTimeout(this._fl); this._fl = setTimeout(() => (el.style.boxShadow = ''), 110); }
   hitWorm(e, fwd) {
     e.hp -= this.cfg.dan.dmg * this.swordMul; e.inv = 0.3; e.kb.copy(fwd).multiplyScalar(7); audio.sfx('hit'); this.burst(e.pos, '#bedc78', 5);
-    if (e.hp <= 0) { e.dead = true; this.waveKills++; audio.sfx('kill'); for (const s of e.segs) { this.burst(s.position, '#5fbf3a', 3); this.scene.remove(s); }
+    if (e.hp <= 0) { e.dead = true; this.waveKills++; audio.sfx('kill'); e.onDie?.(); for (const s of e.segs) { this.burst(s.position, '#5fbf3a', 3); if (!e.keepMesh) this.scene.remove(s); }
       if (e.type === 'spam' && e.gen < 2) for (const sx of [-0.5, 0.5]) { const k = this.spawnVirus('spam', e.pos.clone().add(new V3(sx, 0, 0)), e.gen + 1); k.rise = 0; k.speed *= 1.15; k.kb.set(sx * 8, 0, 0); } }
   }
   // ---------- ארגז הציד בתלת-ממד ----------
@@ -424,6 +444,7 @@ export class World3D {
   }
   updateWorm(e, dt) {
     if (e.virus) return this.updateVirus3(e, dt);
+    if (e.app) return this.updateApp(e, dt);
     const d = this.nearest(e.pos) || this.dan; e.t += dt; e.inv = Math.max(0, e.inv - dt);
     if (e.stun > 0 && e.rise <= 0) { e.stun -= dt; e.segs[0].rotation.z = Math.sin(e.t * 20) * 0.3; return; } // מלכודת
     if (e.rise > 0) { e.rise -= dt; e.segs.forEach((s) => (s.position.y = 0.3 - e.rise)); return; }

@@ -25,7 +25,7 @@ export class Pixi {
   }
   hasCoin(id) { return (store.load().coins || []).includes(id); }
   constructor() { this.max = 100; this.tokens = 100; this.scan = 0; this.outages = 0; this.out = false; this.boost = 0; this.boostT = 18; }
-  reset(full = true) { if (full) this.tokens = this.max; this.scan = 0; this.out = false; this.boost = 0; this.boostT = 14 + Math.random() * 10; }
+  reset(full = true) { if (full) this.tokens = this.max; this.scan = 0; this.out = false; this.noWifi = false; this.boost = 0; this.boostT = 14 + Math.random() * 10; }
   /** מכפיל מהירות לדן (בוסט של 5 שניות) */
   speedMul() { return this.boost > 0 ? BOOST_MUL : 1; }
   /** פיקסי שולח בוסט מהירות – גם כשנגמרו לו הטוקנים */
@@ -36,6 +36,7 @@ export class Pixi {
   }
   /** לחיצה על כפתור פיקסי. מחזיר true אם הסריקה התחילה */
   tryScan() {
+    if (this.noWifi) { hud.say('אין קליטה… 📶❌ הנתב חוסם אותי. רגע – הנתב הוא האויב 😅', 2.8); audio.sfx('empty'); return false; }
     const cost = this.scanCost();
     if (this.out || this.tokens < cost) {
       hud.say(this.out ? 'אני… עדיין בלי טוקנים 😅 נסה אחרי הקרב.' : `צריך ${cost} טוקנים לסריקה. יש לי רק ${Math.floor(this.tokens)}.`, 2.6);

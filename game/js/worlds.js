@@ -48,7 +48,14 @@ export const WORLDS = {
   },
   4: {
     kind: 'boss', name: 'הקרב האחרון', short: 'הקרב האחרון', era: 'FINAL · 8 › 16 › 32 › MODERN', eraIdx: 0, song: 'boss', next: null, final: true,
+    // (פרק 1 נגמר כאן; פרק 2 = עולם 5)
     intro: 'ההאקר נכנס מהדלת האחורית והוא שולט בעידנים. בכל פעם שתפגע בו מספיק, העולם יקפוץ לעידן הבא. פיקסי מבטיח שהפעם הטוקנים יספיקו. נראה.',
+  },
+  5: {
+    kind: 'house', name: 'פרק 2 – הבית של דן', short: 'פרק 2', era: 'MODERN · פרק 2 – החיים האמיתיים', eraIdx: 3, song: 'home', next: null, chapter2: true,
+    intro: 'הקלטת השחורה פתחה דלת אחורית לעולם האמיתי. הווירוס יצא מהקונסולה אל הבית של דן, והמכשירים נדבקו: הטלוויזיה, המקרר ואפילו שואבי האבק. פיקסי בא איתכם – אבל בבית כמעט אין לו קליטה.',
+    cfg: { key: 'h', coins: 1, era: 'modern', mode: 'house', seed: 77, bounds: 14, shards: 0, start: [-6.5, -1], startYaw: Math.PI,
+      dan: { hp: 8, speed: 4.4, reach: 2, dmg: 1 }, worm: { hp: 3, speed: 2.2 }, sky: '#120d1c', fog: [40, 80], ground: ['#000', '#000', '#000'] },
   },
 };
 
@@ -86,5 +93,6 @@ export async function makeLevel(id) {
   if (W.kind === '2d') return new World2D(W.cfg);
   if (W.kind === '3d') return new (await load3D())(W.cfg);
   if (W.kind === 'boss') return new BossLevel(BOSS_PHASES);
+  if (W.kind === 'house') { await load3D(); const { House } = await import('./house.js'); return new House(W.cfg); }
   throw new Error('unknown world ' + id);
 }
