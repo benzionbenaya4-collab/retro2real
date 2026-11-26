@@ -23,7 +23,7 @@ const heartsHtml = (hp, max, cls = '') => Array.from({ length: max }, (_, i) => 
 
 let last = {};
 export const hud = {
-  show(on) { for (const e of both) e.hud.hidden = !on; if (!on) { this.say(null); this.banner(null); this.bossBar(null); this.boost(0); } },
+  show(on) { for (const e of both) e.hud.hidden = !on; if (!on) { this.say(null); this.banner(null); this.bossBar(null); this.boost(0); this.popup(1, false); this.popup(2, false); } },
   setWorld(name) { for (const e of both) e.name.textContent = name; },
   hearts(hp, max) {
     const k = hp + '/' + max; if (last.h === k) return; last.h = k;
@@ -64,6 +64,17 @@ export const hud = {
     if (!html) { for (const e of both) e.banner.hidden = true; return; }
     for (const e of both) { e.banner.innerHTML = html; e.banner.hidden = false; }
     this._banT = setTimeout(() => { for (const e of both) e.banner.hidden = true; }, sec * 1000);
+  },
+  /** חלון פופ-אפ שמכסה את המסך של שחקן (1/2) עד שמכים בו */
+  popup(id, on) {
+    const k = 'pop' + id; if (last[k] === on) return; last[k] = on;
+    let el = document.getElementById('popup' + id);
+    if (!el) {
+      el = document.createElement('div'); el.id = 'popup' + id; el.className = 'popup-win p' + id; el.hidden = true;
+      el.innerHTML = '<div class="pw-bar"><span>הודעה חשובה!!!</span><b>✕</b></div><div class="pw-body"><div class="pw-big">🎉 מזל טוב! 🎉</div><p>זכית ב-1,000,000 טוקנים חינם!<br>רק תלחץ כאן… ותן לנו את כל הקוד שלך</p><div class="pw-btn">לחץ A כדי לסגור</div></div>';
+      $('#stage').insertBefore(el, $('#touch'));
+    }
+    el.hidden = !on; if (on) audio.sfx('bolt');
   },
   reset() { last = {}; },
 };

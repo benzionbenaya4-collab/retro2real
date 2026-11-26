@@ -167,3 +167,16 @@ body.side.mode3d #split-line { display: block; top: 0; bottom: 0; left: calc(50%
 @keyframes tilt { 50% { transform: rotate(-90deg); } }
 .coop-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 body.table #btn-menu { top: calc(50% - 15px); left: 50%; transform: translateX(-50%); z-index: 3; }
+
+/* פופ-אפ: מכסה את המסך של השחקן עד שמכים בו */
+.popup-win { position: absolute; left: 8%; right: 8%; top: 14%; bottom: 22%; display: flex; flex-direction: column; background: #e8e4f0; color: #1b1724; border: 3px solid #1b1724; box-shadow: 8px 8px 0 #000a; pointer-events: none; z-index: 2; animation: pop .15s ease-out; }
+.popup-win .pw-bar { display: flex; justify-content: space-between; align-items: center; background: #ff3d6e; color: #fff; font-weight: 900; padding: 4px 10px; font-size: 14px; }
+.popup-win .pw-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 10px; }
+.popup-win .pw-big { font-size: clamp(20px, 5vw, 34px); font-weight: 900; animation: blink .5s steps(1) infinite; }
+.popup-win p { margin: 0; font-size: clamp(13px, 2.6vw, 17px); line-height: 1.5; }
+.popup-win .pw-btn { background: #1b1724; color: #ffcf4a; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+body.table .popup-win.p1 { top: 56%; bottom: 8%; }
+body.table .popup-win.p2 { top: 8%; bottom: 56%; transform: rotate(180deg); }
+body.side.mode3d .popup-win.p1 { left: 3%; right: 53%; }
+body.side.mode3d .popup-win.p2 { left: 53%; right: 3%; }
+body:not(.table):not(.mode3d) .popup-win.p2 { top: 18%; bottom: 18%; }

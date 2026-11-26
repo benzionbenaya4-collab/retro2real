@@ -6,6 +6,7 @@ import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
 import { input } from './input.js';
+import { VIRUS, pickVirus, virusStats, updateVirus, virusContactDamage, onVirusDead, drawVirus, drawConfused } from './viruses.js';
 import { createZones, updateZones, drawZones, zoneArrows } from './zones.js';
 
 const T = 16;
@@ -187,7 +188,8 @@ export class World2D {
     if (cells.length) { const i = cells[Math.floor(Math.random() * cells.length)]; x = (i % this.W) * T + 8; y = Math.floor(i / this.W) * T + 12; }
     else { for (let k = 0; k < 40; k++) { const a = Math.random() * 6.28; x = this.dan.x + Math.cos(a) * 120; y = this.dan.y + Math.sin(a) * 120; if (!this.boxHit(x, y, 5)) break; } }
     for (let k = 0; k < 8; k++) this.part(x, y - 4, this.cfg.colors.dark, 0.5, 80);
-    return this.spawnEnemy(x, y);
+    const vt = pickVirus(this.cfg);
+    return vt ? this.spawnEnemy(x, y, vt, virusStats(vt, this.cfg)) : this.spawnEnemy(x, y);
   }
 
   // ---------- עדכון ----------
@@ -231,6 +233,7 @@ export class World2D {
     this.pixi.x += (tx - this.pixi.x) * Math.min(1, dt * 4); this.pixi.y += (ty - this.pixi.y) * Math.min(1, dt * 4);
     this.updateParts(dt);
     this.shake = Math.max(0, this.shake - dt); this.flash = Math.max(0, this.flash - dt);
+    for (const p of this.players) hud.popup(p.id, this.enemies.some((e) => e.attached === p && !e.dead));
     hud.hearts(Math.max(0, d.hp), c.dan.hp); hud.hearts2(this.noam ? Math.max(0, this.noam.hp) : null, c.dan.hp); hud.shards(this.got, this.shards.length);
     if (this.boss && !this.boss.dead) hud.bossBar(this.cfg.arena ? this.cfg.arena.label : this.cfg.miniboss.label, this.boss.hp / this.boss.max); else hud.bossBar(null);
     return null;
@@ -241,6 +244,7 @@ export class World2D {
   updatePlayer(d, inp, dt) {
     const c = this.cfg;
     d.t += dt; d.inv = Math.max(0, d.inv - dt); d.atkCd = Math.max(0, d.atkCd - dt); d.atkT += dt;
+    if (d.conf > 0) { d.conf -= dt; inp = Object.assign({}, inp, { x: -inp.x, y: -inp.y }); } // באג: כיוונים הפוכים
     if (d.hp <= 0) { // נפל – קם אחרי כמה שניות אם החבר עדיין עומד
       d.down = (d.down ?? 8) - dt;
       if (d.down <= 0 && this.alive().length) { d.hp = Math.ceil(c.dan.hp / 2); d.inv = 2; d.down = undefined; hud.say(d.id === 2 ? 'נועם חזר! 💪' : 'דן חזר!', 2); audio.sfx('heart'); }
@@ -276,6 +280,7 @@ export class World2D {
       this.fx.push({ kind: 'slash', x: hx, y: hy, fx, fy, t: 0 });
       for (const e of this.enemies) {
         if (e.inv > 0 || e.rise > 0 || e.dead) continue;
+        if (e.attached === d) { this.hitEnemy(e, c.dan.dmg * (this.swordMul || 1), fx, fy); continue; } // פופ-אפ שמכסה את המסך
         if (dist(hx, hy, e.x, e.y - e.r) < c.dan.reach + e.r) this.hitEnemy(e, c.dan.dmg * (this.swordMul || 1), fx, fy);
       }
     }
@@ -299,6 +304,7 @@ export class World2D {
       for (let k = 0; k < 14; k++) this.part(e.x, e.y - e.r, k % 2 ? this.cfg.colors.dark : this.cfg.colors.light, 0.7, 120);
       if (!e.boss && this.dan.hp < this.cfg.dan.hp && Math.random() < 0.22) this.items.push({ kind: 'heart', x: e.x, y: e.y - 2, t: 0 });
       if (e.boss) this.onBossDown(e);
+      if (e.virus) onVirusDead(this, e);
     }
   }
   updateEnemy(e, dt) {
@@ -307,7 +313,8 @@ export class World2D {
     let vx = 0, vy = 0;
     const tg = e.tgt && !e.tgt.dead && e.tgt.hp > 0 ? e.tgt : (this.nearest(e.x, e.y) || d);
     const dx = tg.x - e.x, dy = tg.y - e.y, L = Math.hypot(dx, dy) || 1;
-    if (e.type === 'trojan') vx = this.aiTrojan(e, dt, dx / L, dy / L);
+    if (e.virus) { updateVirus(this, e, dt); if (e.attached) { e.vx = e.vy = 0; e.face = 'idle'; return; } }
+    else if (e.type === 'trojan') vx = this.aiTrojan(e, dt, dx / L, dy / L);
     else if (e.type === 'hacker' || e.type === 'pixi1') vx = this.aiHacker(e, dt, dx / L, dy / L);
     else { // תולעת: מתפתלת לעבר דן
       const wob = Math.sin(e.t * 5) * 0.5, chase = L < 200 ? 1 : 0.35;
@@ -319,7 +326,7 @@ export class World2D {
     e.kx *= Math.exp(-8 * dt); e.ky *= Math.exp(-8 * dt);
     e.face = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'walk_right' : 'walk_left') : 'walk_down';
     if (e.attackAnim > 0) e.attackAnim -= dt;
-    for (const p of this.players) if (p.hp > 0 && dist(e.x, e.y - e.r, p.x, p.y - 6) < e.r + 5) this.hurtPlayer(p, e.dmg, p.x - e.x, p.y - e.y);
+    if (!e.virus || virusContactDamage(e)) for (const p of this.players) if (p.hp > 0 && dist(e.x, e.y - e.r, p.x, p.y - 6) < e.r + 5) this.hurtPlayer(p, e.dmg, p.x - e.x, p.y - e.y);
   }
   aiTrojan(e, dt, ux, uy) { // סוס טרויאני: מתקרב לאט, מסתער, ומוציא תולעים מהבטן
     e.aiT -= dt;
@@ -458,8 +465,10 @@ export class World2D {
     drawSpr(ctx, S, anim, d.atkT < 0.3 && S && S.j.anims['attack_' + d.hface] ? d.atkT : d.t, d.x, d.y);
     if (this.noam) { ctx.fillStyle = d.id === 2 ? '#ffcf4a' : '#6fe3ff'; ctx.fillRect(Math.round(d.x) - 1, Math.round(d.y) - (S ? S.j.frameH : 24) - 3, 3, 2); } // סימון שחקן 1/2
     if (this.swordMul > 1) { ctx.fillStyle = Math.floor(this.t * 10) % 2 ? '#ffcf4a' : '#6fe3ff'; ctx.fillRect(Math.round(d.x) + (d.hface === 'right' ? 6 : -8), Math.round(d.y) - 16, 2, 2); }
+    if (d.conf > 0) drawConfused(ctx, this, d, S ? S.j.frameH : 24);
   }
   drawEnemy(ctx, e) {
+    if (e.virus) { if (e.inv > 0 && Math.floor(e.inv * 20) % 2) return; drawVirus(ctx, this, e, e.rise > 0 ? 1 - e.rise : 1); return; }
     const S = this.SPR(this.cfg.era, e.type);
     if (e.rise > 0) { // יוצא מה-void
       ctx.save(); ctx.beginPath(); ctx.rect(e.x - 30, e.y - 60, 60, 60); ctx.clip();

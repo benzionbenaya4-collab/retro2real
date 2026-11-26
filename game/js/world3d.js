@@ -9,6 +9,7 @@ import { hud } from './hud.js';
 import { pixi } from './pixi.js';
 import { clamp, rng } from './util.js';
 import { input } from './input.js';
+import { VIRUS, pickVirus, CONFUSE_TIME } from './viruses.js';
 
 const V3 = THREE.Vector3;
 let R = null; // רנדרר יחיד לכל המשחק (הקשר WebGL אחד)
@@ -209,7 +210,7 @@ export class World3D {
   spawnFromEdge() {
     for (let k = 0; k < 20; k++) {
       const a = Math.random() * 6.28, d = this.cfg.bounds * (0.6 + Math.random() * 0.3), p = new V3(Math.cos(a) * d, 0, Math.sin(a) * d);
-      if (p.distanceTo(this.dan.pos) > 6) return this.spawnWorm(p);
+      if (p.distanceTo(this.dan.pos) > 6) { const vt = pickVirus(this.cfg); return vt ? this.spawnVirus(vt, p) : this.spawnWorm(p); }
     }
     return this.spawnWorm(new V3(0, 0, 0));
   }
@@ -268,16 +269,22 @@ export class World3D {
     // סמנים
     if (pixi.scan > 0) for (const mk of this.markers) { if (mk.e && (mk.e.dead || !mk.e.pos)) { mk.s.visible = false; continue; } const p = mk.e ? mk.e.pos : mk.p; mk.s.position.set(p.x, (mk.h || 1.2) + Math.sin(this.t * 6) * 0.1, p.z); }
     else if (this.markers.length) { for (const mk of this.markers) this.scene.remove(mk.s); this.markers = []; }
+    for (const p of this.players) { hud.popup(p.id, this.enemies.some((e) => e.attached === p && !e.dead)); if (p.warn) p.warn.visible = p.conf > 0 && Math.floor(this.t * 4) % 2 === 0; }
     hud.hearts(Math.max(0, d.hp), c.dan.hp); hud.hearts2(this.noam ? Math.max(0, this.noam.hp) : null, c.dan.hp); hud.shards(this.got, this.shards.length);
     if (this.boss && this.boss.hp > 0) hud.bossBar(c.boss.label, this.boss.hp / this.boss.max); else hud.bossBar(null);
     return null;
   }
   alive() { return this.players.filter((p) => p.hp > 0); }
   nearest(pos) { let b = null, bd = Infinity; for (const p of this.players) { if (p.hp <= 0) continue; const q = Math.hypot(pos.x - p.pos.x, pos.z - p.pos.z); if (q < bd) { bd = q; b = p; } } return b; }
-  /** שחקן: שליטת טנק (כמו פעם) – ימינה/שמאלה מסובב, למעלה/למטה הולך */
+  /** שחקן: תזוזה ביחס למצלמה, מצלמה שנגררת, חרב */
   updatePlayer(d, inp, dt) {
     const c = this.cfg, B = c.bounds, C = d.C;
     d.inv = Math.max(0, d.inv - dt); d.atkCd = Math.max(0, d.atkCd - dt); d.atkT += dt;
+    if (!d.warn) { // אייקון אזהרה (באג) מעל הראש
+      this.warnTex ||= canvasTex(16, 16, (x) => { x.fillStyle = '#1b1724'; x.beginPath(); x.moveTo(8, 0); x.lineTo(16, 15); x.lineTo(0, 15); x.closePath(); x.fill(); x.fillStyle = '#ffcf4a'; x.beginPath(); x.moveTo(8, 3); x.lineTo(14, 14); x.lineTo(2, 14); x.closePath(); x.fill(); x.fillStyle = '#1b1724'; x.fillRect(7, 6, 2, 5); x.fillRect(7, 12, 2, 1); });
+      d.warn = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.warnTex, depthTest: false })); d.warn.scale.set(0.35, 0.35, 1); d.warn.position.y = 2.15; d.warn.visible = false; C.root.add(d.warn);
+    }
+    if (d.conf > 0) { d.conf -= dt; inp = Object.assign({}, inp, { x: -inp.x, y: -inp.y }); } // באג: כיוונים הפוכים
     if (d.hp <= 0) {
       d.down = (d.down ?? 8) - dt; C.anim.update(dt, { speed: 0 }); C.root.visible = Math.floor(this.t * 4) % 2 === 0;
       if (d.down <= 0 && this.alive().length) { d.hp = Math.ceil(c.dan.hp / 2); d.inv = 2; d.down = undefined; C.root.visible = true; hud.say(d.id === 2 ? 'נועם חזר! 💪' : 'דן חזר!', 2); audio.sfx('heart'); }
@@ -314,7 +321,7 @@ export class World3D {
     if (!d.hitDone && d.atkT > 0.14) {
       d.hitDone = true; const reach = c.dan.reach * (this.swordMul > 1 ? 1.25 : 1);
       const hit = (p, r = 0.4) => { const v = new V3(p.x - d.pos.x, 0, p.z - d.pos.z), l = v.length(); return l < reach + r && (l < 0.8 || v.normalize().dot(fwd) > 0.25); };
-      for (const e of this.enemies) if (e.inv <= 0 && e.rise <= 0 && hit(e.pos)) this.hitWorm(e, fwd);
+      for (const e of this.enemies) if (e.inv <= 0 && e.rise <= 0 && (e.attached === d || hit(e.pos))) this.hitWorm(e, fwd);
       if (this.boss && this.boss.hp > 0 && this.boss.inv <= 0 && hit(this.boss.pos, 0.7)) this.hitBoss(fwd);
       if (this.swordMul > 1) this.burst(d.pos.clone().addScaledVector(fwd, 1.4), '#6fe3ff', 6, 3);
     }
@@ -327,9 +334,57 @@ export class World3D {
   flash(color) { const el = document.getElementById('stage'); el.style.boxShadow = `inset 0 0 0 100vmax ${color}55`; clearTimeout(this._fl); this._fl = setTimeout(() => (el.style.boxShadow = ''), 110); }
   hitWorm(e, fwd) {
     e.hp -= this.cfg.dan.dmg * this.swordMul; e.inv = 0.3; e.kb.copy(fwd).multiplyScalar(7); audio.sfx('hit'); this.burst(e.pos, '#bedc78', 5);
-    if (e.hp <= 0) { e.dead = true; this.waveKills++; audio.sfx('kill'); for (const s of e.segs) { this.burst(s.position, '#5fbf3a', 3); this.scene.remove(s); } }
+    if (e.hp <= 0) { e.dead = true; this.waveKills++; audio.sfx('kill'); for (const s of e.segs) { this.burst(s.position, '#5fbf3a', 3); this.scene.remove(s); }
+      if (e.type === 'spam' && e.gen < 2) for (const sx of [-0.5, 0.5]) { const k = this.spawnVirus('spam', e.pos.clone().add(new V3(sx, 0, 0)), e.gen + 1); k.rise = 0; k.speed *= 1.15; k.kb.set(sx * 8, 0, 0); } }
+  }
+  // ---------- וירוסים בתלת-ממד ----------
+  spawnVirus(type, pos, gen = 0) {
+    const retro = this.cfg.era === '32'; let m;
+    if (type === 'popup') {
+      this.popTex ||= canvasTex(32, 24, (x) => { x.fillStyle = '#1b1724'; x.fillRect(0, 0, 32, 24); x.fillStyle = '#e8e4f0'; x.fillRect(1, 5, 30, 18); x.fillStyle = '#ff3d6e'; x.fillRect(1, 1, 30, 4); x.fillStyle = '#fff'; x.fillRect(27, 2, 2, 2); x.fillStyle = '#ffcf4a'; x.fillRect(5, 9, 22, 3); x.fillStyle = '#1b1724'; x.fillRect(5, 14, 14, 2); x.fillRect(5, 18, 18, 2); });
+      m = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.popTex })); m.scale.set(0.9, 0.68, 1);
+    } else if (type === 'spam') {
+      this.spamTex ||= canvasTex(24, 16, (x) => { x.fillStyle = '#efe9f7'; x.fillRect(0, 0, 24, 16); x.strokeStyle = '#ff3d6e'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, 0); x.lineTo(12, 9); x.lineTo(24, 0); x.stroke(); x.fillStyle = '#ffcf4a'; x.fillRect(19, 2, 3, 3); });
+      const k = [1, 0.75, 0.55][gen];
+      m = new THREE.Mesh(new THREE.BoxGeometry(0.6 * k, 0.4 * k, 0.06), [this.Mat({ color: '#d8d0e6' }), this.Mat({ color: '#d8d0e6' }), this.Mat({ color: '#d8d0e6' }), this.Mat({ color: '#d8d0e6' }), new THREE.MeshBasicMaterial({ map: this.spamTex }), new THREE.MeshBasicMaterial({ map: this.spamTex })]);
+    } else {
+      m = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, retro ? 5 : 10, retro ? 4 : 8), this.Mat({ color: '#ff3d6e' })); body.scale.set(1, 0.6, 1.3); m.add(body);
+      const legM = this.Mat({ color: '#1b1724' });
+      for (const sx of [-1, 1]) for (const z of [-0.15, 0, 0.15]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.03), legM); l.position.set(sx * 0.22, -0.05, z); m.add(l); }
+    }
+    m.position.copy(pos); m.position.y = type === 'bug' ? 0.2 : 1; this.scene.add(m);
+    const V = VIRUS[type], e = { virus: true, type, gen, segs: [m], pos: m.position, hp: V.hp, inv: 0.5, speed: V.speed / 20, t: Math.random() * 5, kb: new V3(), rise: 0.4, vel: new V3() };
+    this.enemies.push(e); this.burst(pos, '#ff3d6e', 8); return e;
+  }
+  updateVirus3(e, dt) {
+    e.t += dt; e.inv = Math.max(0, e.inv - dt); if (e.rise > 0) { e.rise -= dt; return; }
+    const m = e.segs[0], t = e.attached && e.attached.hp > 0 ? e.attached : this.nearest(e.pos); if (!t) return;
+    const to = new V3(t.pos.x - e.pos.x, 0, t.pos.z - e.pos.z), L = to.length() || 1; to.divideScalar(L);
+    if (e.type === 'popup') {
+      if (e.attached) { if (e.attached.hp <= 0) { e.attached = null; m.visible = true; } else { m.visible = false; e.pos.set(t.pos.x, 1, t.pos.z); return; } }
+      e.pos.addScaledVector(to, e.speed * dt); e.pos.y = 1.1 + Math.sin(e.t * 6) * 0.1;
+      if (L < 0.9 && !this.enemies.some((o) => o !== e && o.attached === t)) { e.attached = t; m.visible = false; audio.sfx('bolt'); }
+      return;
+    }
+    if (e.type === 'bug') {
+      e.turn = (e.turn ?? 0) - dt;
+      if (e.turn <= 0) { e.turn = 0.35 + Math.random() * 0.4; const a = Math.atan2(to.x, to.z) + (Math.random() - 0.5) * 2.2; e.vel.set(Math.sin(a), 0, Math.cos(a)).multiplyScalar(e.speed); }
+      e.pos.addScaledVector(e.vel, dt); m.rotation.y = Math.atan2(e.vel.x, e.vel.z); m.children.forEach((l, i) => { if (i) l.rotation.y = Math.sin(e.t * 20 + i) * 0.4; });
+      for (const p of this.alive()) if (!(p.conf > 0) && Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z) < 0.6) {
+        p.conf = CONFUSE_TIME; audio.sfx('empty'); hud.say(p.id === 2 ? 'נועם: הכיוונים התהפכו! 😵' : 'הכיוונים התהפכו! 😵 עוד רגע זה עובר.', 2.4);
+        const a = Math.random() * 6.28; e.pos.x += Math.cos(a) * 3; e.pos.z += Math.sin(a) * 3;
+      }
+    } else { // spam
+      const side = new V3(-to.z, 0, to.x).multiplyScalar(Math.sin(e.t * 5) * 0.5);
+      e.pos.addScaledVector(to.clone().add(side).normalize(), e.speed * dt); e.pos.y = 0.7 + Math.abs(Math.sin(e.t * 7)) * 0.3; m.rotation.y += dt * 3;
+      for (const p of this.alive()) if (e.inv <= 0 && Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z) < 0.55) this.hurt(p, 1, new V3(p.pos.x - e.pos.x, 0, p.pos.z - e.pos.z));
+    }
+    e.pos.addScaledVector(e.kb, dt); e.kb.multiplyScalar(Math.exp(-6 * dt)); this.collide(e.pos, 0.25);
+    m.visible = !(e.inv > 0 && Math.floor(e.inv * 20) % 2);
   }
   updateWorm(e, dt) {
+    if (e.virus) return this.updateVirus3(e, dt);
     const d = this.nearest(e.pos) || this.dan; e.t += dt; e.inv = Math.max(0, e.inv - dt);
     if (e.rise > 0) { e.rise -= dt; e.segs.forEach((s) => (s.position.y = 0.3 - e.rise)); return; }
     const to = new V3(d.pos.x - e.pos.x, 0, d.pos.z - e.pos.z), L = to.length() || 1; to.divideScalar(L);
