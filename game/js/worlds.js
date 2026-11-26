@@ -78,6 +78,9 @@ const BOSS_PHASES = [
       arena: { boss: 'pixi1', label: 'פיקסי 1.0', hp: 18, speed: 22, r: 12, dmg: 1, scale: 2, boltEvery: 1.5, boltSpeed: 80, spread: [-0.5, -0.25, 0, 0.25, 0.5] } })) },
 ];
 
+/** כל הקלטות במשחק (למדף בלובי), לפי סדר העולמות */
+export const ALL_TAPES = [1, 2, 3].flatMap((w) => (WORLDS[w].cfg.tapes || []).map((t) => ({ ...t, world: w, worldName: WORLDS[w].short, era: WORLDS[w].cfg.era === '8bit' ? '8bit' : '16bit' })));
+
 export async function makeLevel(id) {
   const W = WORLDS[id];
   if (W.kind === '2d') return new World2D(W.cfg);

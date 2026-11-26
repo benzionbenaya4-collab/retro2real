@@ -182,3 +182,24 @@ body.side.mode3d .popup-win.p2 { left: 53%; right: 3%; }
 body:not(.table):not(.mode3d) .popup-win.p2 { top: 18%; bottom: 18%; }
 
 body.in-mini #top, body.in-mini .popup-win { display: none !important; }
+
+/* מדף הקלטות */
+#shelf { justify-content: flex-start; overflow-y: auto; padding-top: max(28px, env(safe-area-inset-top)); }
+#shelf h2 { margin: 0; font-size: clamp(24px, 6vw, 34px); font-weight: 900; }
+#shelf .shelf-sub { margin: 0; color: var(--muted); font-size: 14px; }
+.shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; width: min(100%, 720px); padding: 14px; border-radius: 14px; background: linear-gradient(#2a1d14, #1a120c); box-shadow: inset 0 -6px 0 #0007; }
+.tape { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; border-radius: 10px; border: 2px solid #ffffff22; background: #3b6fd6; color: #fff; cursor: pointer; font: 700 14px var(--f-body); text-align: center; }
+.tape .reels { display: flex; gap: 18px; background: #efe9f7; border-radius: 6px; padding: 6px 12px; }
+.tape .reels i { width: 16px; height: 16px; border-radius: 50%; background: #1b1724; border: 3px solid #6b6480; }
+.tape small { font-weight: 400; font-size: 11px; opacity: .8; }
+.tape.gold { grid-column: 1 / -1; background: linear-gradient(120deg, #b8860b, #ffcf4a 40%, #fff3b0 50%, #ffcf4a 60%, #b8860b); background-size: 300% 100%; color: #2a1d00; border-color: #fff3b0; animation: shine 3s linear infinite; font-size: 16px; }
+@keyframes shine { to { background-position: -300% 0; } }
+.tape.missing { background: #0e0b14; color: #4a4258; border-style: dashed; cursor: default; }
+.tape.missing .reels { background: #1b1724; }
+.tape.missing .reels i { background: #0e0b14; border-color: #2b2538; }
+.tape.locked { opacity: .55; cursor: not-allowed; }
+.tape .tag2 { position: absolute; top: 6px; inset-inline-start: 6px; background: var(--gold); color: #1b1724; border-radius: 6px; padding: 1px 6px; font-size: 10px; }
+.tape:focus-visible { outline: 3px solid var(--pixi); outline-offset: 2px; }
+.shelf-btn { margin-top: 2px; }
+
+.end-insert { position: absolute; left: 50%; bottom: max(7%, calc(env(safe-area-inset-bottom) + 24px)); transform: translateX(-50%); z-index: 5; }

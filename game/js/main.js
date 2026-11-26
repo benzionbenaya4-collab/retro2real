@@ -5,12 +5,13 @@ import { audio } from './audio.js';
 import { hud } from './hud.js';
 import { pixi } from './pixi.js';
 import * as store from './save.js';
-import { WORLDS, makeLevel, load3D } from './worlds.js';
+import { WORLDS, makeLevel, load3D, ALL_TAPES } from './worlds.js';
 import { makeMini, TAPES } from './minigames.js';
 import { loadSprite } from './assets.js';
+import { Ending } from './ending.js';
 
 const view = $('#view'), ctx = view.getContext('2d'), glc = $('#gl');
-const scr = { title: $('#title'), pause: $('#pause'), card: $('#card') };
+const scr = { title: $('#title'), pause: $('#pause'), card: $('#card'), shelf: $('#shelf') };
 let save = store.load(); audio.setOn(save.sound);
 let state = 'title', level = null, worldId = 1, VW = 320, VH = 180, busy = false;
 
@@ -111,6 +112,13 @@ function onResult(r) {
   const W = WORLDS[next];
   card(W.era, W.name, W.intro, 'יאללה', () => enterWorld(next, false));
 }
+// סוף פתוח: הקונסולה של נועם נדלקת לבד…
+let ending = null;
+function startEnding() {
+  screen(null); hud.show(false); showTouch(false); $('#btn-menu').hidden = true;
+  glc.hidden = true; view.hidden = false; setMode3d(false); level?.dispose?.(); level = null; fit();
+  audio.stop(); ending = new Ending(); state = 'ending';
+}
 // פיקסי 1.0 הובס – פיקסי צריך להחליט. בסוף מתקנים אותו.
 function finale() {
   audio.play('title', 1);
@@ -126,7 +134,7 @@ function repair() {
 function theEnd() {
   save = store.save({ world: 1, best: Math.max(save.best || 0, 1) });
   audio.play('win', 3);
-  card('THE END · תודה ששיחקת', 'ניצחת!', 'ההאקר הובס, חרב האינסוף החזירה את העולמות למקומם, ופיקסי 1.0 תוקן. עכשיו יש שני פיקסים, ושניהם בלי טוקנים. 😅', 'למסך הפתיחה', showTitle);
+  card('THE END · תודה ששיחקת', 'ניצחת!', 'ההאקר הובס, חרב האינסוף החזירה את העולמות למקומם, ופיקסי 1.0 תוקן. עכשיו יש שני פיקסים, ושניהם בלי טוקנים. 😅', 'רגע… מה זה?', startEnding);
 }
 
 // ---------- קלטות ----------
@@ -137,8 +145,9 @@ function miniFit() {
   if (mini.c.width !== mini.W || mini.c.height !== mini.H) { mini.c.width = mini.W; mini.c.height = mini.H; }
   mctx.imageSmoothingEnabled = false;
 }
-function openTape(tape) {
-  const era = level?.cfg?.era === '8bit' ? '8bit' : '16bit';
+function openTape(tape, fromShelf = false) {
+  const era = tape.era || (level?.cfg?.era === '8bit' ? '8bit' : '16bit'); mini.fromShelf = fromShelf;
+  if (fromShelf) { screen(null); showTouch(true); }
   loadSprite(era, 'dan').catch(() => {}); loadSprite(era, 'noam').catch(() => {}); loadSprite('16bit', 'pixi').catch(() => {});
   const found = new Set(store.load().tapes || []); if (!found.has(tape.id)) { found.add(tape.id); save = store.save({ tapes: [...found] }); }
   mini.tape = tape; mini.era = era; setMode3d(false); startMini();
@@ -158,11 +167,33 @@ function endMini(r) {
 }
 function closeMini() {
   document.body.classList.remove('in-mini');
-  mini.el.hidden = true; mini.game = null; state = 'play'; syncCanvas(); $('#btn-menu').hidden = false; $('#btn-pixi').hidden = false; $('#btn-pixi2').hidden = false;
+  mini.el.hidden = true; mini.game = null; $('#btn-pixi').hidden = false; $('#btn-pixi2').hidden = false;
+  if (mini.fromShelf) { mini.fromShelf = false; showTouch(false); showShelf(); return; }
+  state = 'play'; syncCanvas(); $('#btn-menu').hidden = false; $('#btn-pixi').hidden = false; $('#btn-pixi2').hidden = false;
   const W = WORLDS[worldId]; if (W && W.song) audio.play(W.song, W.eraIdx);
 }
 $('#mini-exit').onclick = closeMini; $('#mini-back').onclick = closeMini; $('#mini-again').onclick = startMini;
 addEventListener('resize', () => { if (state === 'mini') miniFit(); });
+
+// ---------- מדף הקלטות (בלובי) ----------
+function showShelf() {
+  state = 'shelf'; screen('shelf'); audio.play('title', 0);
+  const found = new Set(store.load().tapes || []), grid = scr.shelf.querySelector('.shelf-grid');
+  scr.shelf.querySelector('.shelf-sub').textContent = `נמצאו ${ALL_TAPES.filter((t) => found.has(t.id)).length} מתוך ${ALL_TAPES.length} קלטות`;
+  grid.innerHTML = '';
+  for (const t of [...ALL_TAPES].sort((a, b) => (b.gold ? 1 : 0) - (a.gold ? 1 : 0))) {
+    const b = document.createElement('button'), has = found.has(t.id), T = TAPES[t.kind], locked = has && T.twoP && !input.coop;
+    b.className = 'tape' + (t.gold ? ' gold' : '') + (has ? '' : ' missing') + (locked ? ' locked' : '');
+    b.innerHTML = `${T.twoP ? '<span class="tag2">2P</span>' : ''}<div class="reels"><i></i><i></i></div>${has ? T.title : '???'}<small>${has ? (locked ? 'בחרו מצב לשניים' : t.worldName) : 'עוד לא נמצאה'}</small>`;
+    b.setAttribute('aria-label', has ? `${T.title} – ${t.worldName}` : 'קלטת שעוד לא נמצאה');
+    if (!has || locked) b.disabled = !has; else b.onclick = () => { audio.unlock(); openTape(t, true); };
+    if (locked) b.onclick = () => { audio.sfx('empty'); b.querySelector('small').textContent = 'רק במצב לשניים 👥'; };
+    grid.appendChild(b);
+  }
+  setTimeout(() => (grid.querySelector('.tape:not(.missing)') || $('#shelf-back')).focus(), 30);
+}
+$('#btn-shelf').onclick = () => { audio.unlock(); showShelf(); };
+$('#shelf-back').onclick = showTitle;
 
 // ---------- השהיה ----------
 function pause(on) {
@@ -190,12 +221,16 @@ function frame(now) {
       if (r) { state = 'result'; onResult(r); }
     }
   } else if (state === 'pause' && input.pausePressed) pause(false);
+  else if (state === 'ending' && ending) {
+    if (ending.update(dt, input) === 'done') { ending.dispose(); ending = null; showTitle(); }
+    else ending.draw(ctx, VW, VH);
+  }
   else if (state === 'mini' && mini.game) {
     if (input.pausePressed) closeMini();
     else if (!mini.done) { const r = mini.game.update(dt, input); if (r) endMini(r); }
     if (mini.game) mini.game.draw(mctx, mini.W, mini.H);
   }
-  if (state === 'mini') { /* המסך של הקלטת מכסה הכול */ }
+  if (state === 'mini' || state === 'ending') { /* מצוירים למעלה */ }
   else if (level && (state === 'play' || state === 'result' || state === 'pause')) { if (level.is3d) level.render(); else if (input.coopMode === 'table' && level.noam) drawTable2D(); else level.draw(ctx, VW, VH); }
   else drawAttract(now / 1000);
   audio.tick(); endFrame();
@@ -228,4 +263,4 @@ requestAnimationFrame(frame);
 pixi.update(0);
 
 // וו לבדיקות אוטומטיות (Playwright)
-window.__r2r = { get state() { return state; }, get level() { return level; }, enterWorld, pixi, input, mini, openTape };
+window.__r2r = { get ending() { return ending; }, startEnding, get state() { return state; }, get level() { return level; }, enterWorld, pixi, input, mini, openTape };
