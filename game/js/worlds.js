@@ -15,7 +15,7 @@ export const WORLDS = {
     intro: 'דן לחץ על הכפתורים הלא נכונים ונשאב לתוך המשחק הישן של נועם. ה-void בולע את העמק, ותולעים זדוניות זוחלות ממנו. אסוף את כל שברי הקוד ופתח את השער שליד הטירה.',
     hello: 'היי! אני פיקסי, מערכת ההגנה של המשחק. נראה לי שהגעתי אליך בטעות… בוא נציל את העמק!',
     cfg: {
-      key: 'w1', viruses: ['spam', 'popup'], coins: 2, tapes: [{ id: 'w1-parkour', kind: 'parkour' }], zones: ['wave', 'part'], era: '8bit', tiles: '8bit_valley_tileset', seed: 1987, w: 40, h: 30, base: 176, shards: 6,
+      key: 'w1', viruses: ['spam', 'popup'], coins: 2, tapes: [{ id: 'w1-parkour', kind: 'parkour' }, { id: 'w1-jump', kind: 'jump' }, { id: 'w1-duel', kind: 'race2', coopOnly: true }], zones: ['wave', 'part'], era: '8bit', tiles: '8bit_valley_tileset', seed: 1987, w: 40, h: 30, base: 176, shards: 6,
       waves: [{ n: 3, need: 0, outage: true }, { n: 5, need: 2 }, { n: 6, need: 4, outage: true }],
       enemy: { name: 'worm', hp: 2, speed: 26, r: 5, dmg: 1 },
       dan: { hp: 6, speed: 64, reach: 13, dmg: 1 },
@@ -27,7 +27,7 @@ export const WORLDS = {
     intro: 'השער זרק את דן קדימה בזמן. פתאום יש צבעים! אבל גם כאן ההאקר השאיר מתנה: סוס טרויאני ענק מחכה ליד הטירה. אסוף את שברי הקוד והבס אותו.',
     hello: 'וואו, 16 ביט! יש לי עכשיו 65,536 צבעים ועדיין אותו מספר טוקנים 😅',
     cfg: {
-      key: 'w2', viruses: ['spam', 'popup', 'bug'], coins: 2, tapes: [{ id: 'w2-catch', kind: 'catch' }, { id: 'w2-gold', kind: 'snake', gold: true }], zones: ['defend', 'part'], era: '16bit', tiles: '16bit_kingdom_tileset', seed: 1991, w: 46, h: 34, base: 224, shards: 5,
+      key: 'w2', viruses: ['spam', 'popup', 'bug'], coins: 2, tapes: [{ id: 'w2-catch', kind: 'catch' }, { id: 'w2-memory', kind: 'memory' }, { id: 'w2-gold', kind: 'snake', gold: true }], zones: ['defend', 'part'], era: '16bit', tiles: '16bit_kingdom_tileset', seed: 1991, w: 46, h: 34, base: 224, shards: 5,
       waves: [{ n: 4, need: 0, outage: true }, { n: 6, need: 3 }],
       enemy: { name: 'worm', hp: 3, speed: 30, r: 7, dmg: 1 },
       miniboss: { name: 'trojan', label: 'הסוס הטרויאני', hp: 16, speed: 24, r: 14, dmg: 2 },
@@ -40,7 +40,7 @@ export const WORLDS = {
     intro: 'העולם קיבל עומק! פוליגונים, טקסטורות מפוקסלות ומצלמה מאחורי הכתף. התולעים כבר לא שטוחות. אסוף 3 שברי קוד ופתח את הפורטל אל ההאקר.',
     hello: matchMedia('(pointer: coarse)').matches ? 'תלת־ממד! הג׳ויסטיק מזיז את דן, וגרירה בצד ימין של המסך מסובבת את המצלמה 😎' : 'תלת־ממד! WASD להליכה, וחצים או גרירה בעכבר מסובבים את המצלמה 😎',
     cfg: {
-      key: 'w3', viruses: ['popup', 'spam', 'bug'], coins: 1, tapes: [{ id: 'w3-maze', kind: 'maze' }], era: '32', mode: 'world', low: 200, seed: 32, bounds: 16, shards: 3,
+      key: 'w3', viruses: ['popup', 'spam', 'bug'], coins: 1, tapes: [{ id: 'w3-maze', kind: 'maze' }, { id: 'w3-race', kind: 'race' }], era: '32', mode: 'world', low: 200, seed: 32, bounds: 16, shards: 3,
       waves: [{ n: 3, need: 0, outage: true }, { n: 4, need: 2 }],
       dan: { hp: 6, speed: 4, reach: 1.9, dmg: 1 }, worm: { hp: 3, speed: 2.1 },
       sky: '#3a2c6a', fog: [9, 30], ground: ['#3c7a2e', '#4a8c38', '#2f6624'],

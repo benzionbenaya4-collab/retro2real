@@ -139,24 +139,26 @@ function miniFit() {
 }
 function openTape(tape) {
   const era = level?.cfg?.era === '8bit' ? '8bit' : '16bit';
-  loadSprite(era, 'dan').catch(() => {}); loadSprite('16bit', 'pixi').catch(() => {});
+  loadSprite(era, 'dan').catch(() => {}); loadSprite(era, 'noam').catch(() => {}); loadSprite('16bit', 'pixi').catch(() => {});
   const found = new Set(store.load().tapes || []); if (!found.has(tape.id)) { found.add(tape.id); save = store.save({ tapes: [...found] }); }
   mini.tape = tape; mini.era = era; setMode3d(false); startMini();
   const T = TAPES[tape.kind]; mini.el.querySelector('.mini-px').textContent = T.px; mini.el.querySelector('.mini-title').textContent = T.title; mini.el.querySelector('.mini-hint').textContent = T.hint;
   const hint = mini.el.querySelector('.mini-hint'); hint.style.opacity = 1; clearTimeout(mini.hintT); mini.hintT = setTimeout(() => (hint.style.opacity = 0), 3200);
-  $('#btn-pixi').hidden = true;
+  $('#btn-pixi').hidden = true; $('#btn-pixi2').hidden = true;
+  document.body.classList.add('in-mini');
   mini.el.hidden = false; state = 'mini'; $('#btn-menu').hidden = true; hud.say(null); audio.sfx('start'); audio.play(tape.gold ? 'win' : 'title', 0);
 }
 function startMini() { mini.game = makeMini(mini.tape.kind, mini.era); mini.end.hidden = true; mini.done = false; miniFit(); }
 function endMini(r) {
   mini.done = true; const coinId = 'tape-' + mini.tape.id, first = r === 'win' && !pixi.hasCoin(coinId);
   if (first) pixi.collectCoin(coinId);
-  mini.end.querySelector('h2').textContent = r === 'win' ? 'כל הכבוד!' : 'אוי…';
+  mini.end.querySelector('h2').textContent = mini.game.resultText || (r === 'win' ? 'כל הכבוד!' : 'אוי…');
   mini.end.querySelector('p').textContent = r === 'win' ? (first ? '✨ פיקסי השתדרג!' : 'הקלטת הזאת כבר נוצחה.') : 'עוד ניסיון?';
   mini.end.hidden = false; audio.sfx(r === 'win' ? 'refill' : 'empty'); setTimeout(() => $(r === 'win' ? '#mini-back' : '#mini-again').focus(), 30);
 }
 function closeMini() {
-  mini.el.hidden = true; mini.game = null; state = 'play'; syncCanvas(); $('#btn-menu').hidden = false; $('#btn-pixi').hidden = false;
+  document.body.classList.remove('in-mini');
+  mini.el.hidden = true; mini.game = null; state = 'play'; syncCanvas(); $('#btn-menu').hidden = false; $('#btn-pixi').hidden = false; $('#btn-pixi2').hidden = false;
   const W = WORLDS[worldId]; if (W && W.song) audio.play(W.song, W.eraIdx);
 }
 $('#mini-exit').onclick = closeMini; $('#mini-back').onclick = closeMini; $('#mini-again').onclick = startMini;

@@ -101,6 +101,7 @@ export class World2D {
     // קלטות: רגילות ליד שביל, קלטת הזהב במחבוא
     this.tapes = []; const tr = rng(c.seed * 17 + 3);
     for (const tp of c.tapes || []) {
+      if (tp.coopOnly && !input.coop) continue; // קלטת לשניים – רק במצבי שני שחקנים
       let p = null;
       if (tp.gold) p = m.hidden.find((h) => m.coinSpots.every((k) => Math.hypot(k.x - h.x, k.y - h.y) > 6)) || m.hidden.find((h) => m.coinSpots.every((k) => Math.hypot(k.x - h.x, k.y - h.y) > 2));
       else for (let tries = 0; tries < 600 && !p; tries++) {

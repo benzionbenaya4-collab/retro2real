@@ -180,3 +180,5 @@ body.table .popup-win.p2 { top: 8%; bottom: 56%; transform: rotate(180deg); }
 body.side.mode3d .popup-win.p1 { left: 3%; right: 53%; }
 body.side.mode3d .popup-win.p2 { left: 53%; right: 3%; }
 body:not(.table):not(.mode3d) .popup-win.p2 { top: 18%; bottom: 18%; }
+
+body.in-mini #top, body.in-mini .popup-win { display: none !important; }

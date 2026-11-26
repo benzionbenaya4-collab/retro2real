@@ -3,19 +3,24 @@
 import { SPR, drawSpr } from './assets.js';
 import { audio } from './audio.js';
 import { clamp, rng } from './util.js';
+import { input } from './input.js';
 
 export const TAPES = {
   parkour: { title: 'פארקור קוד', px: 'TAPE: RUN', hint: 'חצים – ריצה · A – קפיצה. הגע לדגל!' },
   catch: { title: 'גשם שברים', px: 'TAPE: CATCH', hint: 'תפוס 12 שברי קוד. אל תתפוס באגים!' },
   maze: { title: 'מבוך התולעת', px: 'TAPE: MAZE', hint: 'צא מהמבוך לפני שהתולעת תופסת אותך.' },
   snake: { title: 'נחש הבייטים', px: 'GOLD TAPE', hint: 'אסוף 10 בייטים. אל תתנגש בקיר או בזנב.' },
+  jump: { title: 'קפיצות פיקסי', px: 'TAPE: JUMP', hint: 'ימינה/שמאלה – פיקסי קופץ לבד. טפס עד למעלה!' },
+  race: { title: 'מירוץ קוד', px: 'TAPE: RACE', hint: 'ימינה/שמאלה בין הנתיבים. אל תתנגש בבאגים!' },
+  memory: { title: 'הזיכרון של פיקסי', px: 'TAPE: MEMORY', hint: 'פיקסי שכח! הזז את הסמן, A הופך קלף. מצא זוגות.' },
+  race2: { title: 'דן מול נועם', px: '2P TAPE', hint: 'ימינה – ספרינט · A – קפיצה. מי מגיע ראשון?', twoP: true },
 };
 
 const PAL = { bg: '#0b0a14', ink: '#efe9f7', grn: '#7dff9b', dk: '#1f6b3a', red: '#ff3d6e', gold: '#ffcf4a', cyan: '#6fe3ff', grey: '#3a3550' };
 const dirOf = (inp) => (Math.hypot(inp.x, inp.y) < 0.35 ? null : Math.abs(inp.x) > Math.abs(inp.y) ? [Math.sign(inp.x), 0] : [0, Math.sign(inp.y)]);
 
 export function makeMini(kind, era) {
-  const G = { parkour: Parkour, catch: Catch, maze: Maze, snake: Snake }[kind];
+  const G = { parkour: Parkour, catch: Catch, maze: Maze, snake: Snake, jump: Jump, race: Race, memory: Memory, race2: Race2 }[kind];
   return new G(era);
 }
 
@@ -173,6 +178,169 @@ class Snake {
     ctx.fillStyle = Math.floor(this.t * 5) % 2 ? PAL.cyan : '#ffffff'; ctx.font = `${s}px "Press Start 2P", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(this.bit, ox + this.food[0] * s + s / 2, oy + this.food[1] * s + s / 2 + 1);
     bar(ctx, W, `BYTES ${this.ate}/${this.need}`, PAL.gold);
+  }
+}
+
+// ---------- קפיצות פיקסי ----------
+class Jump {
+  constructor() {
+    const r = rng(404); this.plats = []; let y = 150;
+    this.plats.push({ x: 60, y: 160, w: 120 });
+    // כל פלטפורמה קרובה לקודמת: עד 46px למעלה ועד 70px לצד – תמיד אפשר להגיע (קפיצה: ~62px גובה)
+    let px = 100;
+    while (y > -1500) { y -= 26 + r() * 20; px = clamp(px + (r() < 0.5 ? -1 : 1) * (20 + r() * 50), 6, 190); this.plats.push({ x: px, y, w: 38 + r() * 14, move: r() < 0.15 ? (r() < 0.5 ? -1 : 1) * 24 : 0 }); }
+    this.top = y - 20; this.p = { x: 120, y: 150, vy: -250 }; this.cam = 0; this.t = 0; this.best = 150;
+  }
+  update(dt, inp) {
+    const p = this.p; this.t += dt; p.x += inp.x * 150 * dt; p.x = (p.x + 240) % 240;
+    const py = p.y; p.vy = Math.min(380, p.vy + 520 * dt); p.y += p.vy * dt;
+    for (const q of this.plats) { if (q.move) { q.x += q.move * dt; if (q.x < 0 || q.x + q.w > 240) q.move *= -1; }
+      if (p.vy > 0 && py <= q.y && p.y >= q.y && p.x > q.x - 4 && p.x < q.x + q.w + 4) { p.y = q.y; p.vy = -255; audio.sfx('swing'); } }
+    this.best = Math.min(this.best, p.y); this.cam = Math.min(this.cam, p.y - 90);
+    if (p.y < this.top) return 'win';
+    if (p.y > this.cam + 230) return 'lose';
+    return null;
+  }
+  draw(ctx, W, H) {
+    ctx.fillStyle = PAL.bg; ctx.fillRect(0, 0, W, H);
+    const sx = (W - 240) / 2, oy = -this.cam + (H - 200) / 2;
+    ctx.save(); ctx.translate(Math.round(sx), Math.round(oy));
+    ctx.fillStyle = PAL.grey; ctx.fillRect(-1, this.cam - 400, 1, 2000); ctx.fillRect(240, this.cam - 400, 1, 2000);
+    for (const q of this.plats) { if (q.y < this.cam - 40 || q.y > this.cam + 260) continue; ctx.fillStyle = q.move ? PAL.cyan : PAL.grn; ctx.fillRect(Math.round(q.x), Math.round(q.y), Math.round(q.w), 4); }
+    ctx.fillStyle = Math.floor(this.t * 4) % 2 ? PAL.gold : PAL.red; ctx.fillRect(0, this.top, 240, 3);
+    const S = SPR['16bit/pixi']; if (S) drawSpr(ctx, S, 'idle', this.t, this.p.x, this.p.y + 2, 1, 0.6); else { ctx.fillStyle = PAL.gold; ctx.fillRect(this.p.x - 5, this.p.y - 10, 10, 10); }
+    ctx.restore();
+    bar(ctx, W, `${Math.max(0, Math.round(100 * (150 - this.best) / (150 - this.top)))}%`);
+  }
+}
+
+// ---------- מירוץ קוד (מבט מלמעלה) ----------
+class Race {
+  constructor() { this.x = 0.5; this.d = 0; this.goal = 2600; this.v = 120; this.lives = 3; this.obs = []; this.t = 0; this.r = rng(77); this.next = 120; this.hitT = 0; }
+  update(dt, inp) {
+    this.t += dt; this.x = clamp(this.x + inp.x * dt * 0.9, 0.12, 0.88); this.hitT = Math.max(0, this.hitT - dt);
+    this.v = Math.min(260, this.v + dt * 10) * (this.hitT > 0 ? 0.985 : 1); this.d += this.v * dt;
+    while (this.next < this.d + 400) { this.obs.push({ x: 0.15 + this.r() * 0.7, d: this.next, boost: this.r() < 0.2 }); this.next += 50 + this.r() * 60; }
+    for (const o of this.obs) if (!o.done && Math.abs(o.d - (this.d + 30)) < 10 && Math.abs(o.x - this.x) < 0.09) {
+      o.done = true; if (o.boost) { this.v += 40; audio.sfx('boost'); } else { this.lives--; this.hitT = 0.8; this.v *= 0.6; audio.sfx('hurt'); }
+    }
+    this.obs = this.obs.filter((o) => o.d > this.d - 40);
+    if (this.lives <= 0) return 'lose';
+    if (this.d >= this.goal) return 'win';
+    return null;
+  }
+  draw(ctx, W, H) {
+    ctx.fillStyle = '#16131f'; ctx.fillRect(0, 0, W, H);
+    const rw = Math.min(W - 20, 200), rx = (W - rw) / 2, by = H - 34, sc = (H - 30) / 400;
+    ctx.fillStyle = '#2b2538'; ctx.fillRect(rx, 0, rw, H);
+    ctx.fillStyle = PAL.grey; for (let i = 1; i < 3; i++) for (let y = -((this.d * sc) % 24); y < H; y += 24) ctx.fillRect(Math.round(rx + rw * i / 3), Math.round(y), 2, 12);
+    ctx.fillStyle = PAL.gold; const gy = by - (this.goal - this.d - 30) * sc; if (gy > -10) for (let x = 0; x < rw; x += 8) ctx.fillRect(rx + x, Math.round(gy), 4, 4);
+    for (const o of this.obs) { const y = Math.round(by - (o.d - this.d - 30) * sc), x = Math.round(rx + o.x * rw);
+      if (o.boost) { ctx.fillStyle = PAL.gold; ctx.fillRect(x - 5, y - 2, 10, 4); ctx.fillRect(x - 2, y - 5, 4, 10); }
+      else { ctx.fillStyle = PAL.red; ctx.fillRect(x - 7, y - 5, 14, 10); ctx.fillStyle = '#16131f'; ctx.fillRect(x - 3, y - 2, 2, 2); ctx.fillRect(x + 1, y - 2, 2, 2); } }
+    const px = Math.round(rx + this.x * rw); if (!(this.hitT > 0 && Math.floor(this.t * 16) % 2)) { ctx.fillStyle = PAL.cyan; ctx.fillRect(px - 6, by - 9, 12, 16); ctx.fillStyle = '#efe9f7'; ctx.fillRect(px - 4, by - 7, 8, 5); ctx.fillStyle = PAL.ink; ctx.fillRect(px - 7, by - 6, 2, 4); ctx.fillRect(px + 5, by - 6, 2, 4); ctx.fillRect(px - 7, by + 2, 2, 4); ctx.fillRect(px + 5, by + 2, 2, 4); }
+    bar(ctx, W, `${Math.min(100, Math.round(100 * this.d / this.goal))}%   ${'♥'.repeat(Math.max(0, this.lives))}`);
+  }
+}
+
+// ---------- הזיכרון של פיקסי ----------
+const ICONS = ['shard', 'coin', 'heart', 'worm', 'tape', 'sword'];
+class Memory {
+  constructor() {
+    const r = rng(Math.floor(Math.random() * 1e6)), deck = [...ICONS, ...ICONS];
+    for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+    this.cards = deck.map((k) => ({ k, up: false, done: false })); this.cur = 0; this.open = []; this.wait = 0; this.miss = 0; this.maxMiss = 10; this.t = 0; this.mv = 0;
+  }
+  update(dt, inp) {
+    this.t += dt; this.mv -= dt;
+    if (this.mv <= 0 && Math.hypot(inp.x, inp.y) > 0.5) { this.mv = 0.18; const c = this.cur % 4, r = (this.cur / 4) | 0;
+      if (Math.abs(inp.x) > Math.abs(inp.y)) this.cur = r * 4 + clamp(c + Math.sign(inp.x), 0, 3); else this.cur = clamp(r + Math.sign(inp.y), 0, 2) * 4 + c; }
+    if (Math.hypot(inp.x, inp.y) < 0.3) this.mv = 0;
+    if (this.wait > 0) { this.wait -= dt; if (this.wait <= 0) { for (const c of this.open) c.up = false; this.open = []; } return null; }
+    const c = this.cards[this.cur];
+    if (inp.aPressed && !c.up && !c.done) {
+      c.up = true; this.open.push(c); audio.sfx('pixi');
+      if (this.open.length === 2) {
+        if (this.open[0].k === this.open[1].k) { this.open.forEach((x) => (x.done = true)); this.open = []; audio.sfx('shard'); }
+        else { this.miss++; this.wait = 0.8; }
+      }
+    }
+    if (this.cards.every((x) => x.done)) return 'win';
+    if (this.miss >= this.maxMiss && this.wait <= 0) return 'lose';
+    return null;
+  }
+  draw(ctx, W, H) {
+    ctx.fillStyle = PAL.bg; ctx.fillRect(0, 0, W, H);
+    const cw = Math.floor(Math.min((W - 30) / 4, (H - 50) / 3 * 0.8)), ch = Math.floor(cw * 1.25), gx = 6, ox = Math.round((W - (cw * 4 + gx * 3)) / 2), oy = Math.round((H - (ch * 3 + gx * 2)) / 2) + 10;
+    this.cards.forEach((c, i) => {
+      const x = ox + (i % 4) * (cw + gx), y = oy + ((i / 4) | 0) * (ch + gx);
+      ctx.fillStyle = c.done ? PAL.dk : c.up ? '#efe9f7' : '#2b2538'; ctx.fillRect(x, y, cw, ch);
+      if (c.up || c.done) icon(ctx, c.k, x + cw / 2, y + ch / 2, Math.max(1, Math.floor(cw / 14)));
+      else { ctx.fillStyle = PAL.cyan; ctx.fillRect(x + cw / 2 - 2, y + ch / 2 - 2, 4, 4); }
+      if (i === this.cur) { ctx.strokeStyle = Math.floor(this.t * 4) % 2 ? PAL.gold : '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x - 1, y - 1, cw + 2, ch + 2); }
+    });
+    bar(ctx, W, `MISS ${this.miss}/${this.maxMiss}`);
+  }
+}
+function icon(ctx, k, cx, cy, s) { // אייקונים קטנים בפיקסלים
+  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x * s), Math.round(cy + y * s), Math.ceil(w * s), Math.ceil(h * s)); };
+  if (k === 'shard') { R(-1, -5, 2, 10, PAL.grn); R(-3, -3, 6, 6, PAL.grn); R(-5, -1, 10, 2, PAL.grn); }
+  if (k === 'coin') { R(-4, -4, 8, 8, PAL.gold); R(-2, -1, 1, 2, '#000'); R(1, -1, 1, 2, '#000'); }
+  if (k === 'heart') { R(-4, -3, 3, 3, PAL.red); R(1, -3, 3, 3, PAL.red); R(-4, -1, 8, 3, PAL.red); R(-2, 2, 4, 2, PAL.red); }
+  if (k === 'worm') { R(-5, 0, 3, 3, PAL.grn); R(-2, -1, 3, 3, PAL.dk); R(1, 0, 3, 3, PAL.grn); R(3, -3, 3, 3, PAL.grn); R(4, -2, 1, 1, PAL.red); }
+  if (k === 'tape') { R(-5, -3, 10, 7, '#3b6fd6'); R(-3, -1, 2, 2, '#000'); R(1, -1, 2, 2, '#000'); R(-2, 2, 4, 1, '#000'); }
+  if (k === 'sword') { R(-1, -6, 2, 8, '#c8d0dc'); R(-3, 2, 6, 1, PAL.gold); R(-1, 3, 2, 3, '#6b4a2b'); }
+}
+
+// ---------- קלטת לשניים: דן מול נועם ----------
+class Race2 {
+  constructor(era) {
+    this.era = era; const r = rng(2222); this.hurdles = []; for (let x = 160; x < 1500; x += 90 + r() * 90) this.hurdles.push(x);
+    this.goal = 1600; this.t = 0; this.cd = 2.2;
+    this.p = [0, 1].map((i) => ({ i, x: 20, y: 0, vy: 0, stun: 0, name: i ? 'נועם' : 'דן' }));
+    this.winner = null;
+  }
+  update(dt, inp) {
+    this.t += dt; if (this.cd > 0) { this.cd -= dt; return null; }
+    if (this.winner) { this.wt -= dt; return this.wt <= 0 ? 'win' : null; }
+    for (const p of this.p) {
+      const I = p.i ? inp.p2 : inp; p.stun = Math.max(0, p.stun - dt);
+      const sp = p.stun > 0 ? 35 : 85 + clamp(I.x, -0.5, 1) * 45; p.x += sp * dt;
+      if (I.aPressed && p.y === 0) { p.vy = -170; if (!p.i) inp.aPressed = false; audio.sfx('swing'); }
+      p.vy += 520 * dt; p.y = Math.min(0, p.y + p.vy * dt); if (p.y === 0) p.vy = 0;
+      for (const h of this.hurdles) if (p.y > -9 && p.x > h - 4 && p.x < h + 4 && p.stun <= 0) { p.stun = 0.8; p.x = h - 5; audio.sfx('hurt'); }
+      if (p.x >= this.goal && !this.winner) { this.winner = p; this.wt = 2.2; audio.sfx('start'); }
+    }
+    return null;
+  }
+  get resultText() { return this.winner ? `${this.winner.name} ניצח! 🏁` : ''; }
+  lane(ctx, W, H, p, other) {
+    const cam = clamp(p.x - W * 0.3, 0, this.goal + 60 - W), gy = Math.round(H * 0.72);
+    ctx.fillStyle = p.i ? '#1a1608' : '#08141a'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.translate(-Math.round(cam), 0);
+    ctx.fillStyle = PAL.dk; ctx.fillRect(cam, gy, W, H - gy); ctx.fillStyle = PAL.grn; ctx.fillRect(cam, gy, W, 2);
+    for (const h of this.hurdles) { ctx.fillStyle = PAL.red; ctx.fillRect(Math.round(h) - 2, gy - 10, 4, 10); ctx.fillRect(Math.round(h) - 4, gy - 11, 8, 2); }
+    ctx.fillStyle = Math.floor(this.t * 4) % 2 ? PAL.gold : '#fff'; ctx.fillRect(this.goal, gy - 30, 2, 30); ctx.fillRect(this.goal + 2, gy - 30, 12, 8);
+    ctx.globalAlpha = 0.35; this.runner(ctx, other, gy); ctx.globalAlpha = 1; this.runner(ctx, p, gy);
+    ctx.restore();
+    ctx.fillStyle = p.i ? PAL.gold : PAL.cyan; ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.direction = 'ltr';
+    ctx.fillText((p.i ? 'NOAM ' : 'DAN ') + Math.min(100, Math.round(100 * p.x / this.goal)) + '%', 6, 22);
+    if (this.cd > 0) { ctx.textAlign = 'center'; ctx.font = '16px "Press Start 2P", monospace'; ctx.fillStyle = '#fff'; ctx.fillText(this.cd > 1.4 ? '3' : this.cd > 0.7 ? '2' : '1', W / 2, H * 0.35); }
+    if (this.winner) { ctx.textAlign = 'center'; ctx.font = '12px "Press Start 2P", monospace'; ctx.fillStyle = this.winner === p ? PAL.gold : PAL.grey; ctx.fillText(this.winner === p ? 'WIN!' : 'LOSE', W / 2, H * 0.35); }
+  }
+  runner(ctx, p, gy) {
+    const S = SPR[`${this.era}/${p.i ? 'noam' : 'dan'}`], y = gy + Math.round(p.y);
+    if (S) drawSpr(ctx, S, p.stun > 0 ? 'idle' : 'walk_right', this.t, p.x, y + 1, 1, this.era === '16bit' ? 0.7 : 1);
+    else { ctx.fillStyle = p.i ? PAL.gold : PAL.cyan; ctx.fillRect(p.x - 4, y - 14, 8, 14); }
+  }
+  draw(ctx, W, H) {
+    const h = Math.floor(H / 2), [dan, noam] = this.p;
+    // למטה דן, למעלה נועם. במצב שולחן החצי העליון מסובב 180°
+    ctx.save(); ctx.translate(0, h); ctx.beginPath(); ctx.rect(0, 0, W, H - h); ctx.clip(); this.lane(ctx, W, H - h, dan, noam); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, h); ctx.clip();
+    if (input.coopMode === 'table') { ctx.translate(W, h); ctx.rotate(Math.PI); }
+    this.lane(ctx, W, h, noam, dan); ctx.restore();
+    ctx.fillStyle = '#000'; ctx.fillRect(0, h - 1, W, 2);
   }
 }
 

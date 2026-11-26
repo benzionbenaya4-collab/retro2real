@@ -136,7 +136,7 @@ export class World3D {
     }
     // קלטות
     this.tapes = [];
-    (c.tapes || []).forEach((tp, i) => {
+    (c.tapes || []).filter((tp) => !tp.coopOnly || input.coop).forEach((tp, i) => {
       const g = new THREE.Group(), a = Math.PI + i * 0.9, R0 = B * 0.38;
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, 0.32), Mat({ color: tp.gold ? '#ffcf4a' : '#3b6fd6' }));
       const lab = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.075, 0.12), Mat({ color: '#efe9f7' })); lab.position.z = -0.06;
